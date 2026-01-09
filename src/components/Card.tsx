@@ -84,21 +84,19 @@ export function Card({
       onMouseDown={onMouseDown}
       onTouchStart={onTouchStart}
     >
-      {/* Top left */}
-      <div className={`absolute top-0.5 left-0.5 ${colorClass} text-[0.5rem] sm:text-xs font-bold leading-none`}>
-        <div>{card.rank}</div>
-        <div className="text-[0.6rem] sm:text-sm">{symbol}</div>
-      </div>
-
-      {/* Center */}
-      <div className={`absolute inset-0 flex items-center justify-center ${colorClass} text-base sm:text-2xl`}>
+      {/* Top left - small suit symbol */}
+      <div className={`absolute top-0.5 left-1 ${colorClass} text-[0.5rem] leading-none`}>
         {symbol}
       </div>
 
-      {/* Bottom right (inverted) */}
-      <div className={`absolute bottom-0.5 right-0.5 ${colorClass} text-[0.5rem] sm:text-xs font-bold leading-none rotate-180`}>
-        <div>{card.rank}</div>
-        <div className="text-[0.6rem] sm:text-sm">{symbol}</div>
+      {/* Center - BIG rank number */}
+      <div className={`absolute inset-0 flex items-center justify-center ${colorClass} text-xl sm:text-3xl font-bold`}>
+        {card.rank}
+      </div>
+
+      {/* Bottom right - small suit symbol (inverted) */}
+      <div className={`absolute bottom-0.5 right-1 ${colorClass} text-[0.5rem] leading-none rotate-180`}>
+        {symbol}
       </div>
     </div>
   );
