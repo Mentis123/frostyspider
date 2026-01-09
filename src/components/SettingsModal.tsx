@@ -94,6 +94,12 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               note={onIOS ? 'Not supported on iOS devices' : undefined}
             />
             <ToggleOption
+              label="Immersive Mode"
+              checked={settings.immersiveEnabled}
+              onChange={() => updateSettings({ immersiveEnabled: !settings.immersiveEnabled })}
+              note="Visual push effects for tactile feel"
+            />
+            <ToggleOption
               label="Animations"
               checked={settings.animationsEnabled}
               onChange={() => updateSettings({ animationsEnabled: !settings.animationsEnabled })}

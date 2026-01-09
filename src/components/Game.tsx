@@ -24,7 +24,8 @@ export function Game() {
   const feedbackOptions = useMemo(() => ({
     soundEnabled: gameState.settings.soundEnabled,
     hapticEnabled: gameState.settings.hapticEnabled,
-  }), [gameState.settings.soundEnabled, gameState.settings.hapticEnabled]);
+    immersiveEnabled: gameState.settings.immersiveEnabled,
+  }), [gameState.settings.soundEnabled, gameState.settings.hapticEnabled, gameState.settings.immersiveEnabled]);
 
   // Show win modal when game is won
   useEffect(() => {

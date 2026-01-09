@@ -80,7 +80,10 @@ export function GameBoard() {
   const feedbackOptions = useMemo(() => ({
     soundEnabled: gameState.settings.soundEnabled,
     hapticEnabled: gameState.settings.hapticEnabled,
-  }), [gameState.settings.soundEnabled, gameState.settings.hapticEnabled]);
+    immersiveEnabled: gameState.settings.immersiveEnabled,
+  }), [gameState.settings.soundEnabled, gameState.settings.hapticEnabled, gameState.settings.immersiveEnabled]);
+
+  const isImmersive = gameState.settings.immersiveEnabled;
 
   // Handle card tap (for tap-to-select-tap-to-move)
   const handleCardTap = useCallback(
@@ -354,6 +357,7 @@ export function GameBoard() {
                             card={card}
                             stackOffset={stackOffset}
                             isSelected={!!isSelected}
+                            isImmersive={isImmersive}
                             onClick={() => handleCardTap(colIndex, cardIndex)}
                             onMouseDown={(e: React.MouseEvent) =>
                               card.faceUp && handleMouseDown(e, colIndex, cardIndex)
