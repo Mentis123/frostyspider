@@ -74,6 +74,10 @@ export function Game() {
     }
   };
 
+  const handleShowSplash = useCallback(() => {
+    setShowSplash(true);
+  }, []);
+
   const confirmNewGame = () => {
     newGame();
     setShowNewGameConfirm(false);
@@ -98,7 +102,7 @@ export function Game() {
       />
 
       {/* Modals */}
-      <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />
+      <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} onShowSplash={handleShowSplash} />
       <WinModal isOpen={showWin} onClose={() => setShowWin(false)} />
 
       {/* New game confirmation */}
