@@ -80,6 +80,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               onChange={() => updateSettings({ soundEnabled: !settings.soundEnabled })}
             />
             <ToggleOption
+              label="Haptic Feedback"
+              checked={settings.hapticEnabled}
+              onChange={() => updateSettings({ hapticEnabled: !settings.hapticEnabled })}
+            />
+            <ToggleOption
               label="Animations"
               checked={settings.animationsEnabled}
               onChange={() => updateSettings({ animationsEnabled: !settings.animationsEnabled })}

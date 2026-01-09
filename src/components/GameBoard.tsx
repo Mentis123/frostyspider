@@ -5,6 +5,7 @@ import { Card, EmptySlot, StockPile, CompletedPile } from './Card';
 import { useGame } from '@/contexts/GameContext';
 import { getValidSequence, canMoveToColumn } from '@/lib/gameEngine';
 import { Card as CardType } from '@/lib/types';
+import { gameFeedback } from '@/lib/feedback';
 
 // Hook to calculate responsive card dimensions for 3-3-4 layout
 function useCardDimensions() {
@@ -75,6 +76,12 @@ export function GameBoard() {
     return null;
   }, []);
 
+  // Feedback helper
+  const feedbackOptions = useMemo(() => ({
+    soundEnabled: gameState.settings.soundEnabled,
+    hapticEnabled: gameState.settings.hapticEnabled,
+  }), [gameState.settings.soundEnabled, gameState.settings.hapticEnabled]);
+
   // Handle card tap (for tap-to-select-tap-to-move)
   const handleCardTap = useCallback(
     (column: number, cardIndex: number) => {
@@ -90,20 +97,32 @@ export function GameBoard() {
         if (selection.column === column && selection.cardIndex === cardIndex) {
           // Tapped same card - deselect
           setSelection(null);
+          gameFeedback('select', feedbackOptions);
         } else if (selection.column !== column) {
           // Try to move selected cards here
-          const moved = moveCards(selection.column, selection.cardIndex, column);
+          const canMove = canMoveToColumn(
+            getValidSequence(gameState.tableau[selection.column], selection.cardIndex) || [],
+            gameState.tableau[column]
+          );
+          if (canMove) {
+            moveCards(selection.column, selection.cardIndex, column);
+            gameFeedback('move', feedbackOptions);
+          } else {
+            gameFeedback('invalid', feedbackOptions);
+          }
           setSelection(null);
         } else {
           // Selected different card in same column - change selection
           setSelection({ column, cardIndex });
+          gameFeedback('select', feedbackOptions);
         }
       } else {
-        // No selection - either auto-move (double tap) or select
+        // No selection - select this card
         setSelection({ column, cardIndex });
+        gameFeedback('select', feedbackOptions);
       }
     },
-    [selection, gameState.tableau, moveCards]
+    [selection, gameState.tableau, gameState.settings, moveCards, feedbackOptions]
   );
 
   // Handle empty column tap
@@ -111,10 +130,11 @@ export function GameBoard() {
     (column: number) => {
       if (selection) {
         moveCards(selection.column, selection.cardIndex, column);
+        gameFeedback('move', feedbackOptions);
         setSelection(null);
       }
     },
-    [selection, moveCards]
+    [selection, moveCards, feedbackOptions]
   );
 
   // Touch/drag handling
@@ -151,11 +171,17 @@ export function GameBoard() {
 
     const targetCol = getColumnAtPosition(dragState.currentX, dragState.currentY);
     if (targetCol !== null && targetCol !== dragState.fromCol) {
-      moveCards(dragState.fromCol, dragState.cardIndex, targetCol);
+      const canMove = canMoveToColumn(dragState.cards, gameState.tableau[targetCol]);
+      if (canMove) {
+        moveCards(dragState.fromCol, dragState.cardIndex, targetCol);
+        gameFeedback('move', feedbackOptions);
+      } else {
+        gameFeedback('invalid', feedbackOptions);
+      }
     }
 
     setDragState(null);
-  }, [dragState, getColumnAtPosition, moveCards]);
+  }, [dragState, getColumnAtPosition, moveCards, gameState.tableau, feedbackOptions]);
 
   // Mouse events
   const handleMouseDown = useCallback(
@@ -230,6 +256,14 @@ export function GameBoard() {
 
   const canDealCards = gameState.stock.length > 0 && !gameState.tableau.some(col => col.length === 0);
 
+  // Handle deal with feedback
+  const handleDeal = useCallback(() => {
+    if (canDealCards) {
+      deal();
+      gameFeedback('deal', feedbackOptions);
+    }
+  }, [canDealCards, deal, feedbackOptions]);
+
   // Calculate total column height using responsive offsets
   const getColumnHeight = useCallback((column: CardType[]): number => {
     let height = cardHeight;
@@ -250,7 +284,7 @@ export function GameBoard() {
       <div className="flex justify-between items-start px-1 pt-1">
         <StockPile
           remainingDeals={gameState.stock.length}
-          onClick={deal}
+          onClick={handleDeal}
           disabled={!canDealCards}
         />
         <CompletedPile
