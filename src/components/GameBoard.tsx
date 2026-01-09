@@ -6,7 +6,7 @@ import { useGame } from '@/contexts/GameContext';
 import { getValidSequence, canMoveToColumn } from '@/lib/gameEngine';
 import { Card as CardType } from '@/lib/types';
 
-// Hook to calculate responsive card dimensions
+// Hook to calculate responsive card dimensions for 3-3-4 layout
 function useCardDimensions() {
   const [windowWidth, setWindowWidth] = useState(
     typeof window !== 'undefined' ? window.innerWidth : 375
@@ -19,17 +19,24 @@ function useCardDimensions() {
   }, []);
 
   return useMemo(() => {
-    // Match CSS formula: min(52px, (100vw - 26px) / 10)
-    const cardWidth = Math.min(52, (windowWidth - 26) / 10);
+    // Match CSS formula: min(80px, (100vw - 40px) / 4)
+    const cardWidth = Math.min(80, (windowWidth - 40) / 4);
     const cardHeight = cardWidth * 1.38;
-    const columnWidth = cardWidth + 4;
-    // Responsive stack offsets
-    const stackOffsetFacedown = Math.max(4, cardWidth * 0.15);
-    const stackOffsetFaceup = Math.max(14, cardWidth * 0.42);
+    const columnWidth = cardWidth + 8;
+    // Tighter stack offsets for multi-row layout
+    const stackOffsetFacedown = Math.max(3, cardWidth * 0.08);
+    const stackOffsetFaceup = Math.max(10, cardWidth * 0.18);
 
     return { cardWidth, cardHeight, columnWidth, stackOffsetFacedown, stackOffsetFaceup };
   }, [windowWidth]);
 }
+
+// Row configuration: 3-3-4 layout
+const ROW_CONFIG = [
+  [0, 1, 2],       // Row 1: columns 0-2
+  [3, 4, 5],       // Row 2: columns 3-5
+  [6, 7, 8, 9],    // Row 3: columns 6-9
+];
 
 interface DragState {
   fromCol: number;
@@ -252,75 +259,84 @@ export function GameBoard() {
         />
       </div>
 
-      {/* Tableau - 10 columns */}
-      <div className="flex justify-center px-1 pt-8 pb-4" style={{ gap: 'var(--card-gap)' }}>
-        {gameState.tableau.map((column, colIndex) => {
-          const isDropTarget =
-            (dragState && dragState.fromCol !== colIndex) ||
-            (selection && selection.column !== colIndex);
-          const isValidTarget = isDropTarget && isValidDropTarget(colIndex);
+      {/* Tableau - 3-3-4 row layout */}
+      <div className="flex flex-col items-center px-2 pt-2 pb-2 gap-1 overflow-y-auto h-full no-scrollbar">
+        {ROW_CONFIG.map((rowCols, rowIndex) => (
+          <div
+            key={rowIndex}
+            className="flex justify-center"
+            style={{ gap: 'var(--card-gap)' }}
+          >
+            {rowCols.map((colIndex) => {
+              const column = gameState.tableau[colIndex];
+              const isDropTarget =
+                (dragState && dragState.fromCol !== colIndex) ||
+                (selection && selection.column !== colIndex);
+              const isValidTarget = isDropTarget && isValidDropTarget(colIndex);
 
-          return (
-            <div
-              key={colIndex}
-              ref={el => { columnRefs.current[colIndex] = el; }}
-              className={`
-                relative flex-shrink-0
-                ${isValidTarget ? 'bg-green-600/30 rounded-lg' : ''}
-              `}
-              style={{
-                width: columnWidth,
-                minHeight: cardHeight + 50,
-                height: Math.max(cardHeight + 50, getColumnHeight(column) + 20),
-              }}
-              onClick={() => column.length === 0 && handleEmptyColumnTap(colIndex)}
-            >
-              {column.length === 0 ? (
-                <EmptySlot onClick={() => handleEmptyColumnTap(colIndex)} />
-              ) : (
-                column.map((card, cardIndex) => {
-                  // Don't render cards being dragged in their original position
-                  const isDragged =
-                    dragState &&
-                    dragState.fromCol === colIndex &&
-                    cardIndex >= dragState.cardIndex;
+              return (
+                <div
+                  key={colIndex}
+                  ref={el => { columnRefs.current[colIndex] = el; }}
+                  className={`
+                    relative flex-shrink-0
+                    ${isValidTarget ? 'bg-green-600/30 rounded-lg' : ''}
+                  `}
+                  style={{
+                    width: columnWidth,
+                    minHeight: cardHeight + 30,
+                    height: Math.max(cardHeight + 30, getColumnHeight(column) + 10),
+                  }}
+                  onClick={() => column.length === 0 && handleEmptyColumnTap(colIndex)}
+                >
+                  {column.length === 0 ? (
+                    <EmptySlot onClick={() => handleEmptyColumnTap(colIndex)} />
+                  ) : (
+                    column.map((card, cardIndex) => {
+                      // Don't render cards being dragged in their original position
+                      const isDragged =
+                        dragState &&
+                        dragState.fromCol === colIndex &&
+                        cardIndex >= dragState.cardIndex;
 
-                  const isSelected =
-                    selection &&
-                    selection.column === colIndex &&
-                    cardIndex >= selection.cardIndex;
+                      const isSelected =
+                        selection &&
+                        selection.column === colIndex &&
+                        cardIndex >= selection.cardIndex;
 
-                  let stackOffset = 0;
-                  for (let i = 0; i < cardIndex; i++) {
-                    stackOffset += column[i].faceUp ? stackOffsetFaceup : stackOffsetFacedown;
-                  }
+                      let stackOffset = 0;
+                      for (let i = 0; i < cardIndex; i++) {
+                        stackOffset += column[i].faceUp ? stackOffsetFaceup : stackOffsetFacedown;
+                      }
 
-                  return (
-                    <div
-                      key={card.id}
-                      style={{
-                        opacity: isDragged ? 0.3 : 1,
-                      }}
-                    >
-                      <Card
-                        card={card}
-                        stackOffset={stackOffset}
-                        isSelected={!!isSelected}
-                        onClick={() => handleCardTap(colIndex, cardIndex)}
-                        onMouseDown={(e: React.MouseEvent) =>
-                          card.faceUp && handleMouseDown(e, colIndex, cardIndex)
-                        }
-                        onTouchStart={(e: React.TouchEvent) =>
-                          card.faceUp && handleTouchStart(e, colIndex, cardIndex)
-                        }
-                      />
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          );
-        })}
+                      return (
+                        <div
+                          key={card.id}
+                          style={{
+                            opacity: isDragged ? 0.3 : 1,
+                          }}
+                        >
+                          <Card
+                            card={card}
+                            stackOffset={stackOffset}
+                            isSelected={!!isSelected}
+                            onClick={() => handleCardTap(colIndex, cardIndex)}
+                            onMouseDown={(e: React.MouseEvent) =>
+                              card.faceUp && handleMouseDown(e, colIndex, cardIndex)
+                            }
+                            onTouchStart={(e: React.TouchEvent) =>
+                              card.faceUp && handleTouchStart(e, colIndex, cardIndex)
+                            }
+                          />
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ))}
       </div>
 
       {/* Dragging cards overlay */}
