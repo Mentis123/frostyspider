@@ -6,124 +6,41 @@ import { useGame } from '@/contexts/GameContext';
 import { getValidSequence, canMoveToColumn } from '@/lib/gameEngine';
 import { Card as CardType } from '@/lib/types';
 import { gameFeedback } from '@/lib/feedback';
+import {
+  calculateLayout,
+  calculateSmartOverlap,
+  calculateExpandedOffsets,
+  getCardStackOffset,
+  LayoutResult,
+  StackOffsets,
+} from '@/lib/layoutCalculator';
 
-// Hook to calculate responsive card dimensions - supports portrait (3-3-4) and landscape (10 across)
-function useCardDimensions() {
-  const [windowSize, setWindowSize] = useState({
-    width: typeof window !== 'undefined' ? window.innerWidth : 375,
-    height: typeof window !== 'undefined' ? window.innerHeight : 667,
-  });
+// Hook to observe container dimensions using ResizeObserver
+function useContainerDimensions(containerRef: React.RefObject<HTMLDivElement | null>) {
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
-    const handleResize = () => setWindowSize({
-      width: window.innerWidth,
-      height: window.innerHeight,
+    if (!containerRef.current) return;
+
+    const observer = new ResizeObserver(entries => {
+      const entry = entries[0];
+      if (entry) {
+        const { width, height } = entry.contentRect;
+        setDimensions({ width, height });
+      }
     });
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+
+    observer.observe(containerRef.current);
+
+    // Initial measurement
+    const rect = containerRef.current.getBoundingClientRect();
+    setDimensions({ width: rect.width, height: rect.height });
+
+    return () => observer.disconnect();
   }, []);
 
-  return useMemo(() => {
-    // Detect landscape mode (width > height and wide enough for 10 columns)
-    const isLandscape = windowSize.width > windowSize.height && windowSize.width > 500;
-
-    let cardWidth: number;
-    let availableHeight: number;
-
-    if (isLandscape) {
-      // Landscape: fit all 10 columns across with small gaps
-      // Width: (cardWidth * 10) + (gaps * 11) = windowWidth - padding
-      // cardWidth = (windowWidth - padding - gaps) / 10
-      cardWidth = Math.min(80, (windowSize.width - 80) / 10);
-      // Available height: constrain tightly so stacks compress to fit on screen
-      // Top bar ~80px, control bar ~60px, bottom padding ~20px
-      availableHeight = windowSize.height - 160;
-    } else {
-      // Portrait: 3-3-4 layout - max 4 columns per row
-      cardWidth = Math.min(72, (windowSize.width - 32) / 4);
-      // Available height for each row (3 rows) with more bottom padding
-      availableHeight = (windowSize.height - 200) / 3;
-    }
-
-    const cardHeight = cardWidth * 1.38;
-    const columnWidth = cardWidth + 4;
-    // Card stacking offsets - show enough to see card type in corners
-    // Face-down cards: minimal peek since they're hidden anyway
-    const baseStackOffsetFacedown = Math.max(8, cardWidth * 0.12);
-    // Face-up cards: larger peek to see the header strip with rank/suit
-    const baseStackOffsetFaceup = Math.max(20, cardWidth * 0.28);
-
-    return {
-      cardWidth,
-      cardHeight,
-      columnWidth,
-      baseStackOffsetFacedown,
-      baseStackOffsetFaceup,
-      availableHeight,
-      isLandscape,
-    };
-  }, [windowSize.width, windowSize.height]);
+  return dimensions;
 }
-
-// Calculate dynamic stack offsets for a column to fit within available height
-function calculateDynamicStackOffsets(
-  column: CardType[],
-  cardHeight: number,
-  baseOffsetFacedown: number,
-  baseOffsetFaceup: number,
-  availableHeight: number
-): { facedownOffset: number; faceupOffset: number } {
-  if (column.length <= 1) {
-    return { facedownOffset: baseOffsetFacedown, faceupOffset: baseOffsetFaceup };
-  }
-
-  // Count face-down and face-up cards (excluding the last card which shows full height)
-  let facedownCount = 0;
-  let faceupCount = 0;
-  for (let i = 0; i < column.length - 1; i++) {
-    if (column[i].faceUp) {
-      faceupCount++;
-    } else {
-      facedownCount++;
-    }
-  }
-
-  // Calculate needed height with base offsets
-  const neededHeight = cardHeight + (facedownCount * baseOffsetFacedown) + (faceupCount * baseOffsetFaceup);
-
-  // If it fits, use base offsets
-  if (neededHeight <= availableHeight) {
-    return { facedownOffset: baseOffsetFacedown, faceupOffset: baseOffsetFaceup };
-  }
-
-  // Need to compress - calculate scale factor
-  const stackSpace = availableHeight - cardHeight;
-  if (stackSpace <= 0) {
-    // Extreme case - just use minimum offsets
-    return { facedownOffset: 4, faceupOffset: 8 };
-  }
-
-  // Distribute available space proportionally
-  const totalBaseOffset = (facedownCount * baseOffsetFacedown) + (faceupCount * baseOffsetFaceup);
-  const scale = stackSpace / totalBaseOffset;
-
-  // Apply scale but enforce minimums (4px for facedown, 8px for faceup to show header)
-  const facedownOffset = Math.max(4, baseOffsetFacedown * scale);
-  const faceupOffset = Math.max(8, baseOffsetFaceup * scale);
-
-  return { facedownOffset, faceupOffset };
-}
-
-// Row configuration: 3-3-4 layout for portrait, single row for landscape
-const PORTRAIT_ROW_CONFIG = [
-  [0, 1, 2],       // Row 1: columns 0-2
-  [3, 4, 5],       // Row 2: columns 3-5
-  [6, 7, 8, 9],    // Row 3: columns 6-9
-];
-
-const LANDSCAPE_ROW_CONFIG = [
-  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],  // All 10 columns in one row
-];
 
 interface DragState {
   fromCol: number;
@@ -145,19 +62,43 @@ export function GameBoard() {
   const [selection, setSelection] = useState<Selection | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [expandedColumn, setExpandedColumn] = useState<number | null>(null);
-  const boardRef = useRef<HTMLDivElement>(null);
-  const columnRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const { cardWidth, cardHeight, columnWidth, baseStackOffsetFacedown, baseStackOffsetFaceup, availableHeight, isLandscape } = useCardDimensions();
 
-  // Select row config based on orientation
-  const rowConfig = isLandscape ? LANDSCAPE_ROW_CONFIG : PORTRAIT_ROW_CONFIG;
+  // Refs for measurement and drop detection
+  const boardRef = useRef<HTMLDivElement>(null);
+  const tableauContainerRef = useRef<HTMLDivElement>(null);
+  const columnRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  // Measure actual container dimensions
+  const containerDimensions = useContainerDimensions(tableauContainerRef);
+
+  // Calculate layout based on actual container size
+  const layout = useMemo<LayoutResult>(() => {
+    if (containerDimensions.width === 0 || containerDimensions.height === 0) {
+      // Return sensible defaults until container is measured
+      return {
+        cardWidth: 60,
+        cardHeight: 83,
+        columnWidth: 64,
+        gapSize: 4,
+        isLandscape: false,
+        rowConfig: [[0, 1, 2], [3, 4, 5], [6, 7, 8, 9]],
+        rowHeights: [200, 200, 200],
+      };
+    }
+    return calculateLayout({
+      containerWidth: containerDimensions.width,
+      containerHeight: containerDimensions.height,
+    });
+  }, [containerDimensions]);
+
+  const { cardWidth, cardHeight, columnWidth, gapSize, isLandscape, rowConfig, rowHeights } = layout;
 
   // Handle column tap to expand/collapse
   const handleColumnTap = useCallback((colIndex: number) => {
     if (expandedColumn === colIndex) {
-      setExpandedColumn(null); // Collapse
+      setExpandedColumn(null);
     } else {
-      setExpandedColumn(colIndex); // Expand this column
+      setExpandedColumn(colIndex);
     }
   }, [expandedColumn]);
 
@@ -167,7 +108,8 @@ export function GameBoard() {
       const ref = columnRefs.current[i];
       if (ref) {
         const rect = ref.getBoundingClientRect();
-        if (x >= rect.left && x <= rect.right && y >= rect.top - 50 && y <= rect.bottom + 100) {
+        // Generous detection area
+        if (x >= rect.left - 10 && x <= rect.right + 10 && y >= rect.top - 50 && y <= rect.bottom + 100) {
           return i;
         }
       }
@@ -184,24 +126,20 @@ export function GameBoard() {
 
   const isImmersive = gameState.settings.immersiveEnabled;
 
-  // Handle card tap (for tap-to-select-tap-to-move)
+  // Handle card tap (tap-to-select-tap-to-move)
   const handleCardTap = useCallback(
     (column: number, cardIndex: number) => {
       const card = gameState.tableau[column][cardIndex];
       if (!card.faceUp) return;
 
-      // Check if this card can be moved (is part of a valid sequence)
       const sequence = getValidSequence(gameState.tableau[column], cardIndex);
       if (!sequence) return;
 
       if (selection) {
-        // If we have a selection, try to move to this column
         if (selection.column === column && selection.cardIndex === cardIndex) {
-          // Tapped same card - deselect
           setSelection(null);
           gameFeedback('select', feedbackOptions);
         } else if (selection.column !== column) {
-          // Try to move selected cards here
           const canMove = canMoveToColumn(
             getValidSequence(gameState.tableau[selection.column], selection.cardIndex) || [],
             gameState.tableau[column]
@@ -214,17 +152,15 @@ export function GameBoard() {
           }
           setSelection(null);
         } else {
-          // Selected different card in same column - change selection
           setSelection({ column, cardIndex });
           gameFeedback('select', feedbackOptions);
         }
       } else {
-        // No selection - select this card
         setSelection({ column, cardIndex });
         gameFeedback('select', feedbackOptions);
       }
     },
-    [selection, gameState.tableau, gameState.settings, moveCards, feedbackOptions]
+    [selection, gameState.tableau, moveCards, feedbackOptions]
   );
 
   // Handle empty column tap
@@ -358,7 +294,6 @@ export function GameBoard() {
 
   const canDealCards = gameState.stock.length > 0 && !gameState.tableau.some(col => col.length === 0);
 
-  // Handle deal with feedback
   const handleDeal = useCallback(() => {
     if (canDealCards) {
       deal();
@@ -366,52 +301,90 @@ export function GameBoard() {
     }
   }, [canDealCards, deal, feedbackOptions]);
 
-  // Calculate total column height using dynamic offsets
-  const getColumnHeight = useCallback((column: CardType[]): number => {
-    const { facedownOffset, faceupOffset } = calculateDynamicStackOffsets(
-      column, cardHeight, baseStackOffsetFacedown, baseStackOffsetFaceup, availableHeight
-    );
-    let height = cardHeight;
-    column.forEach((card, i) => {
-      if (i > 0) {
-        height += card.faceUp ? faceupOffset : facedownOffset;
+  // Get row index for a column
+  const getRowIndex = (colIndex: number): number => {
+    for (let rowIdx = 0; rowIdx < rowConfig.length; rowIdx++) {
+      if (rowConfig[rowIdx].includes(colIndex)) {
+        return rowIdx;
       }
+    }
+    return 0;
+  };
+
+  // Calculate offsets and heights for each column
+  const columnLayouts = useMemo(() => {
+    return gameState.tableau.map((column, colIndex) => {
+      const rowIndex = getRowIndex(colIndex);
+      const maxHeight = rowHeights[rowIndex] || 200;
+      const isExpanded = expandedColumn === colIndex;
+
+      // For expanded columns, calculate with more generous max (double row height)
+      const expandedMaxHeight = Math.min(maxHeight * 2, containerDimensions.height - 80);
+
+      const offsets: StackOffsets = isExpanded
+        ? calculateExpandedOffsets(column, cardHeight, expandedMaxHeight)
+        : calculateSmartOverlap(column, cardHeight, maxHeight);
+
+      // Calculate actual stack height
+      let stackHeight = cardHeight;
+      for (let i = 0; i < column.length - 1; i++) {
+        stackHeight += column[i].faceUp ? offsets.faceUpOffset : offsets.faceDownOffset;
+      }
+
+      return {
+        offsets,
+        stackHeight,
+        maxHeight: isExpanded ? expandedMaxHeight : maxHeight,
+        needsScroll: offsets.needsScroll,
+      };
     });
-    return height;
-  }, [cardHeight, baseStackOffsetFacedown, baseStackOffsetFaceup, availableHeight]);
+  }, [gameState.tableau, rowHeights, cardHeight, expandedColumn, containerDimensions.height]);
 
   return (
     <div
       ref={boardRef}
-      className="relative w-full h-full bg-gradient-to-b from-green-800 to-green-900 overflow-hidden"
+      className="relative w-full h-full bg-gradient-to-b from-green-800 to-green-900 overflow-hidden flex flex-col"
     >
-      {/* Compact top bar - stock and completed piles */}
-      <div className="flex justify-between items-start px-1 pt-1">
+      {/* Top bar - stock and completed piles */}
+      <div className="flex justify-between items-start px-2 pt-2 pb-1 flex-shrink-0">
         <StockPile
           remainingDeals={gameState.stock.length}
           onClick={handleDeal}
           disabled={!canDealCards}
+          cardWidth={cardWidth}
+          cardHeight={cardHeight}
         />
         <CompletedPile
           count={gameState.completed.length}
           suit={gameState.completed[0]?.[0]?.suit}
+          cardWidth={cardWidth}
+          cardHeight={cardHeight}
         />
       </div>
 
-      {/* Tableau - 3-3-4 row layout (portrait) or 10-across (landscape) */}
-      <div className={`flex flex-col items-center px-2 pt-1 pb-4 gap-1 no-scrollbar ${isLandscape ? 'justify-start overflow-hidden' : 'overflow-y-auto h-full'}`}>
+      {/* Tableau container - measured by ResizeObserver */}
+      <div
+        ref={tableauContainerRef}
+        className="flex-1 flex flex-col items-center px-2 pb-2 gap-1 overflow-hidden"
+      >
         {rowConfig.map((rowCols, rowIndex) => (
           <div
             key={rowIndex}
-            className="flex justify-center"
-            style={{ gap: 'var(--card-gap)' }}
+            className="flex justify-center items-end"
+            style={{
+              gap: gapSize,
+              height: rowHeights[rowIndex] || 'auto',
+              minHeight: cardHeight + 20,
+            }}
           >
             {rowCols.map((colIndex) => {
               const column = gameState.tableau[colIndex];
+              const columnLayout = columnLayouts[colIndex];
               const isDropTarget =
                 (dragState && dragState.fromCol !== colIndex) ||
                 (selection && selection.column !== colIndex);
               const isValidTarget = isDropTarget && isValidDropTarget(colIndex);
+              const isExpanded = expandedColumn === colIndex;
 
               return (
                 <div
@@ -420,103 +393,90 @@ export function GameBoard() {
                   className={`
                     relative flex-shrink-0 flex flex-col justify-end
                     ${isValidTarget ? 'bg-green-600/30 rounded-lg' : ''}
+                    ${isExpanded ? 'z-30' : ''}
                   `}
                   style={{
                     width: columnWidth,
-                    minHeight: cardHeight + 10,
-                    height: isLandscape ? availableHeight : Math.max(cardHeight + 10, getColumnHeight(column) + 4),
+                    height: '100%',
+                    maxHeight: columnLayout.maxHeight,
                   }}
                   onClick={() => column.length === 0 && handleEmptyColumnTap(colIndex)}
                 >
                   {column.length === 0 ? (
-                    <EmptySlot onClick={() => handleEmptyColumnTap(colIndex)} />
+                    <EmptySlot
+                      onClick={() => handleEmptyColumnTap(colIndex)}
+                      cardWidth={cardWidth}
+                      cardHeight={cardHeight}
+                    />
                   ) : (
-                    (() => {
-                      const isExpanded = expandedColumn === colIndex;
-                      // When expanded, use full base offsets; when collapsed, use dynamic compressed offsets
-                      const { facedownOffset, faceupOffset } = isExpanded
-                        ? { facedownOffset: baseStackOffsetFacedown, faceupOffset: baseStackOffsetFaceup }
-                        : calculateDynamicStackOffsets(column, cardHeight, baseStackOffsetFacedown, baseStackOffsetFaceup, availableHeight);
+                    <div
+                      className={`relative mt-auto ${columnLayout.needsScroll ? 'overflow-y-auto no-scrollbar' : ''}`}
+                      style={{
+                        height: Math.min(columnLayout.stackHeight, columnLayout.maxHeight),
+                        width: '100%',
+                      }}
+                      onClick={(e) => {
+                        if (e.target === e.currentTarget) {
+                          handleColumnTap(colIndex);
+                        }
+                      }}
+                    >
+                      {column.map((card, cardIndex) => {
+                        const isDragged =
+                          dragState &&
+                          dragState.fromCol === colIndex &&
+                          cardIndex >= dragState.cardIndex;
 
-                      // Calculate total stack height
-                      let stackHeight = cardHeight;
-                      for (let i = 0; i < column.length - 1; i++) {
-                        stackHeight += column[i].faceUp ? faceupOffset : facedownOffset;
-                      }
+                        const isSelected =
+                          selection &&
+                          selection.column === colIndex &&
+                          cardIndex >= selection.cardIndex;
 
-                      return (
+                        const stackOffset = getCardStackOffset(column, cardIndex, columnLayout.offsets);
+
+                        return (
+                          <div
+                            key={card.id}
+                            style={{
+                              opacity: isDragged ? 0.3 : 1,
+                            }}
+                          >
+                            <Card
+                              card={card}
+                              stackOffset={stackOffset}
+                              isSelected={!!isSelected}
+                              isImmersive={isImmersive}
+                              cardWidth={cardWidth}
+                              cardHeight={cardHeight}
+                              onClick={() => {
+                                if (isExpanded) {
+                                  handleColumnTap(colIndex);
+                                } else {
+                                  handleCardTap(colIndex, cardIndex);
+                                }
+                              }}
+                              onMouseDown={(e: React.MouseEvent) =>
+                                card.faceUp && !isExpanded && handleMouseDown(e, colIndex, cardIndex)
+                              }
+                              onTouchStart={(e: React.TouchEvent) =>
+                                card.faceUp && !isExpanded && handleTouchStart(e, colIndex, cardIndex)
+                              }
+                            />
+                          </div>
+                        );
+                      })}
+                      {/* Expand indicator for compressed stacks */}
+                      {!isExpanded && column.length > 5 && (
                         <div
-                          className={`relative mt-auto ${isExpanded ? 'z-30' : ''}`}
-                          style={{ height: stackHeight, width: '100%' }}
-                          onClick={(e) => {
-                            // Only toggle expansion if clicking the stack background, not a card
-                            if (e.target === e.currentTarget) {
-                              handleColumnTap(colIndex);
-                            }
-                          }}
+                          className="absolute -top-5 left-0 right-0 flex justify-center cursor-pointer z-10"
+                          onClick={() => handleColumnTap(colIndex)}
                         >
-                          {column.map((card, cardIndex) => {
-                            // Don't render cards being dragged in their original position
-                            const isDragged =
-                              dragState &&
-                              dragState.fromCol === colIndex &&
-                              cardIndex >= dragState.cardIndex;
-
-                            const isSelected =
-                              selection &&
-                              selection.column === colIndex &&
-                              cardIndex >= selection.cardIndex;
-
-                            let stackOffset = 0;
-                            for (let i = 0; i < cardIndex; i++) {
-                              stackOffset += column[i].faceUp ? faceupOffset : facedownOffset;
-                            }
-
-                            return (
-                              <div
-                                key={card.id}
-                                style={{
-                                  opacity: isDragged ? 0.3 : 1,
-                                }}
-                              >
-                                <Card
-                                  card={card}
-                                  stackOffset={stackOffset}
-                                  isSelected={!!isSelected}
-                                  isImmersive={isImmersive}
-                                  onClick={() => {
-                                    // If this column is expanded, tap collapses it
-                                    // Otherwise handle normal card tap
-                                    if (isExpanded) {
-                                      handleColumnTap(colIndex);
-                                    } else {
-                                      handleCardTap(colIndex, cardIndex);
-                                    }
-                                  }}
-                                  onMouseDown={(e: React.MouseEvent) =>
-                                    card.faceUp && !isExpanded && handleMouseDown(e, colIndex, cardIndex)
-                                  }
-                                  onTouchStart={(e: React.TouchEvent) =>
-                                    card.faceUp && !isExpanded && handleTouchStart(e, colIndex, cardIndex)
-                                  }
-                                />
-                              </div>
-                            );
-                          })}
-                          {/* Expand indicator for compressed stacks */}
-                          {!isExpanded && column.length > 5 && (
-                            <div
-                              className="absolute -top-4 left-0 right-0 flex justify-center cursor-pointer"
-                              onClick={() => handleColumnTap(colIndex)}
-                            >
-                              <span className="text-white/60 text-xs bg-black/40 px-2 py-0.5 rounded">
-                                ↑ {column.length} cards
-                              </span>
-                            </div>
-                          )}
+                          <span className="text-white/70 text-[10px] bg-black/50 px-1.5 py-0.5 rounded">
+                            {column.length} cards
+                          </span>
                         </div>
-                      );
-                    })()
+                      )}
+                    </div>
                   )}
                 </div>
               );
@@ -538,8 +498,10 @@ export function GameBoard() {
             <Card
               key={card.id}
               card={card}
-              stackOffset={i * baseStackOffsetFaceup}
+              stackOffset={i * 25}
               isDragging
+              cardWidth={cardWidth}
+              cardHeight={cardHeight}
             />
           ))}
         </div>

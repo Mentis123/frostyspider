@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { Card as CardType, Suit } from '@/lib/types';
-import { FrostySpider } from './FrostySpider';
 
 interface CardProps {
   card: CardType;
@@ -15,6 +14,8 @@ interface CardProps {
   stackOffset?: number;
   isDragging?: boolean;
   style?: React.CSSProperties;
+  cardWidth?: number;
+  cardHeight?: number;
 }
 
 const suitSymbols: Record<Suit, string> = {
@@ -42,6 +43,8 @@ export function Card({
   stackOffset = 0,
   isDragging = false,
   style,
+  cardWidth = 60,
+  cardHeight = 83,
 }: CardProps) {
   const symbol = suitSymbols[card.suit];
   const colorClass = suitColors[card.suit];
@@ -63,8 +66,8 @@ export function Card({
       <div
         className="absolute rounded-lg border-2 border-blue-400 shadow-md select-none overflow-hidden"
         style={{
-          width: 'var(--card-width)',
-          height: 'var(--card-height)',
+          width: cardWidth,
+          height: cardHeight,
           top: stackOffset,
           ...style,
         }}
@@ -78,6 +81,13 @@ export function Card({
       </div>
     );
   }
+
+  // Calculate responsive font sizes based on card width
+  const headerHeight = cardWidth * 0.28;
+  const headerRankSize = cardWidth * 0.22;
+  const headerSuitSize = cardWidth * 0.18;
+  const centerRankSize = cardWidth * 0.7;
+  const bottomSuitSize = cardWidth * 0.25;
 
   return (
     <div
@@ -94,8 +104,8 @@ export function Card({
         select-none touch-none
       `}
       style={{
-        width: 'var(--card-width)',
-        height: 'var(--card-height)',
+        width: cardWidth,
+        height: cardHeight,
         top: stackOffset,
         ...immersiveShadow,
         ...style,
@@ -105,21 +115,27 @@ export function Card({
       onTouchStart={onTouchStart}
     >
       {/* Header strip - visible when stacked - BIG rank + suit */}
-      <div className={`absolute top-0 left-0 right-0 flex items-center justify-center gap-0.5 bg-white border-b border-gray-300 rounded-t-md ${colorClass}`}
-        style={{ height: 'calc(var(--card-width) * 0.28)' }}>
-        <span className="font-black leading-none" style={{ fontSize: 'calc(var(--card-width) * 0.22)' }}>{card.rank}</span>
-        <span className="leading-none" style={{ fontSize: 'calc(var(--card-width) * 0.18)' }}>{symbol}</span>
+      <div
+        className={`absolute top-0 left-0 right-0 flex items-center justify-center gap-0.5 bg-white border-b border-gray-300 rounded-t-md ${colorClass}`}
+        style={{ height: headerHeight }}
+      >
+        <span className="font-black leading-none" style={{ fontSize: headerRankSize }}>{card.rank}</span>
+        <span className="leading-none" style={{ fontSize: headerSuitSize }}>{symbol}</span>
       </div>
 
       {/* Center - HUGE rank that fills the card */}
-      <div className={`absolute inset-0 flex items-center justify-center ${colorClass} font-black`}
-        style={{ fontSize: 'calc(var(--card-width) * 0.7)', paddingTop: 'calc(var(--card-width) * 0.1)' }}>
+      <div
+        className={`absolute inset-0 flex items-center justify-center ${colorClass} font-black`}
+        style={{ fontSize: centerRankSize, paddingTop: cardWidth * 0.1 }}
+      >
         {card.rank}
       </div>
 
       {/* Bottom - suit symbol */}
-      <div className={`absolute bottom-0 left-0 right-0 flex justify-center ${colorClass}`}
-        style={{ fontSize: 'calc(var(--card-width) * 0.25)' }}>
+      <div
+        className={`absolute bottom-0 left-0 right-0 flex justify-center ${colorClass}`}
+        style={{ fontSize: bottomSuitSize }}
+      >
         {symbol}
       </div>
     </div>
@@ -127,7 +143,15 @@ export function Card({
 }
 
 // Empty card slot component
-export function EmptySlot({ onClick }: { onClick?: () => void }) {
+export function EmptySlot({
+  onClick,
+  cardWidth = 60,
+  cardHeight = 83,
+}: {
+  onClick?: () => void;
+  cardWidth?: number;
+  cardHeight?: number;
+}) {
   return (
     <div
       className={`
@@ -137,8 +161,8 @@ export function EmptySlot({ onClick }: { onClick?: () => void }) {
         ${onClick ? 'cursor-pointer hover:bg-gray-700/30' : ''}
       `}
       style={{
-        width: 'var(--card-width)',
-        height: 'var(--card-height)',
+        width: cardWidth,
+        height: cardHeight,
       }}
       onClick={onClick}
     />
@@ -150,15 +174,19 @@ export function StockPile({
   remainingDeals,
   onClick,
   disabled,
+  cardWidth = 60,
+  cardHeight = 83,
 }: {
   remainingDeals: number;
   onClick: () => void;
   disabled: boolean;
+  cardWidth?: number;
+  cardHeight?: number;
 }) {
   const piles = Math.ceil(remainingDeals / 10);
 
   return (
-    <div className="relative" style={{ width: 'var(--card-width)', height: 'var(--card-height)' }}>
+    <div className="relative" style={{ width: cardWidth, height: cardHeight }}>
       {piles > 0 ? (
         <>
           {/* Stack effect with custom card back */}
@@ -172,8 +200,8 @@ export function StockPile({
                 ${disabled ? 'opacity-50' : 'cursor-pointer active:scale-95'}
               `}
               style={{
-                width: 'var(--card-width)',
-                height: 'var(--card-height)',
+                width: cardWidth,
+                height: cardHeight,
                 top: -i * 2,
                 left: i * 1,
                 zIndex: 5 - i,
@@ -194,16 +222,26 @@ export function StockPile({
           </div>
         </>
       ) : (
-        <EmptySlot />
+        <EmptySlot cardWidth={cardWidth} cardHeight={cardHeight} />
       )}
     </div>
   );
 }
 
 // Completed sequence pile
-export function CompletedPile({ count, suit }: { count: number; suit?: Suit }) {
+export function CompletedPile({
+  count,
+  suit,
+  cardWidth = 60,
+  cardHeight = 83,
+}: {
+  count: number;
+  suit?: Suit;
+  cardWidth?: number;
+  cardHeight?: number;
+}) {
   return (
-    <div className="relative" style={{ width: 'var(--card-width)', height: 'var(--card-height)' }}>
+    <div className="relative" style={{ width: cardWidth, height: cardHeight }}>
       {count > 0 ? (
         <>
           {Array.from({ length: Math.min(count, 8) }).map((_, i) => (
@@ -211,14 +249,14 @@ export function CompletedPile({ count, suit }: { count: number; suit?: Suit }) {
               key={i}
               className="absolute rounded-lg bg-gradient-to-br from-green-500 to-green-700 border-2 border-green-400 flex items-center justify-center"
               style={{
-                width: 'var(--card-width)',
-                height: 'var(--card-height)',
+                width: cardWidth,
+                height: cardHeight,
                 top: -i * 2,
                 left: i * 1,
                 zIndex: 8 - i,
               }}
             >
-              <span className="text-white text-base sm:text-2xl">
+              <span className="text-white" style={{ fontSize: cardWidth * 0.4 }}>
                 {suit ? suitSymbols[suit] : '✓'}
               </span>
             </div>
@@ -228,7 +266,7 @@ export function CompletedPile({ count, suit }: { count: number; suit?: Suit }) {
           </div>
         </>
       ) : (
-        <EmptySlot />
+        <EmptySlot cardWidth={cardWidth} cardHeight={cardHeight} />
       )}
     </div>
   );
