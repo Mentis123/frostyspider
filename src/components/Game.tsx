@@ -1,24 +1,44 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { GameBoard } from './GameBoard';
 import { ControlBar } from './ControlBar';
 import { SettingsModal } from './SettingsModal';
 import { WinModal } from './WinModal';
 import { useGame } from '@/contexts/GameContext';
+import { gameFeedback } from '@/lib/feedback';
 
 export function Game() {
   const { gameState, newGame } = useGame();
   const [showSettings, setShowSettings] = useState(false);
   const [showWin, setShowWin] = useState(false);
   const [showNewGameConfirm, setShowNewGameConfirm] = useState(false);
+  const prevCompletedCount = useRef(gameState.completed.length);
+
+  // Feedback options
+  const feedbackOptions = useMemo(() => ({
+    soundEnabled: gameState.settings.soundEnabled,
+    hapticEnabled: gameState.settings.hapticEnabled,
+  }), [gameState.settings.soundEnabled, gameState.settings.hapticEnabled]);
 
   // Show win modal when game is won
   useEffect(() => {
     if (gameState.isWon) {
       setShowWin(true);
+      gameFeedback('win', feedbackOptions);
     }
-  }, [gameState.isWon]);
+  }, [gameState.isWon, feedbackOptions]);
+
+  // Play feedback when a sequence is completed
+  useEffect(() => {
+    if (gameState.completed.length > prevCompletedCount.current) {
+      // Only play complete sound if not the winning move (win sound is better)
+      if (!gameState.isWon) {
+        gameFeedback('complete', feedbackOptions);
+      }
+    }
+    prevCompletedCount.current = gameState.completed.length;
+  }, [gameState.completed.length, gameState.isWon, feedbackOptions]);
 
   const handleNewGameClick = () => {
     if (gameState.moves > 0 && !gameState.isWon) {

@@ -22,6 +22,7 @@ export interface GameState {
 export interface GameSettings {
   suitCount: 1 | 2 | 4; // Number of suits to use
   soundEnabled: boolean;
+  hapticEnabled: boolean;
   animationsEnabled: boolean;
   autoComplete: boolean;
   showTimer: boolean;
@@ -65,6 +66,7 @@ export const SUITS: Suit[] = ['spades', 'hearts', 'diamonds', 'clubs'];
 export const DEFAULT_SETTINGS: GameSettings = {
   suitCount: 1,
   soundEnabled: true,
+  hapticEnabled: true,
   animationsEnabled: true,
   autoComplete: true,
   showTimer: true,

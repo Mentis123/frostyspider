@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useGame } from '@/contexts/GameContext';
+import { gameFeedback } from '@/lib/feedback';
 
 interface ControlBarProps {
   onSettingsClick: () => void;
@@ -11,6 +12,24 @@ interface ControlBarProps {
 export function ControlBar({ onSettingsClick, onNewGameClick }: ControlBarProps) {
   const { gameState, canUndo, canRedo, undo, redo } = useGame();
   const [elapsedTime, setElapsedTime] = useState('0:00');
+
+  // Feedback options
+  const feedbackOptions = useMemo(() => ({
+    soundEnabled: gameState.settings.soundEnabled,
+    hapticEnabled: gameState.settings.hapticEnabled,
+  }), [gameState.settings.soundEnabled, gameState.settings.hapticEnabled]);
+
+  // Undo with feedback
+  const handleUndo = useCallback(() => {
+    undo();
+    gameFeedback('undo', feedbackOptions);
+  }, [undo, feedbackOptions]);
+
+  // Redo with feedback
+  const handleRedo = useCallback(() => {
+    redo();
+    gameFeedback('undo', feedbackOptions);
+  }, [redo, feedbackOptions]);
 
   // Update timer
   useEffect(() => {
@@ -49,8 +68,8 @@ export function ControlBar({ onSettingsClick, onNewGameClick }: ControlBarProps)
 
         {/* Control buttons - compact */}
         <div className="flex items-center gap-0.5">
-          <CompactButton onClick={undo} disabled={!canUndo} icon="undo" />
-          <CompactButton onClick={redo} disabled={!canRedo} icon="redo" />
+          <CompactButton onClick={handleUndo} disabled={!canUndo} icon="undo" />
+          <CompactButton onClick={handleRedo} disabled={!canRedo} icon="redo" />
           <CompactButton onClick={onNewGameClick} icon="new" />
           <CompactButton onClick={onSettingsClick} icon="settings" />
         </div>
