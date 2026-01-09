@@ -11,6 +11,7 @@ import {
   calculateSmartOverlap,
   calculateExpandedOffsets,
   getCardStackOffset,
+  isStackCompressed,
   LayoutResult,
   StackOffsets,
 } from '@/lib/layoutCalculator';
@@ -331,11 +332,15 @@ export function GameBoard() {
         stackHeight += column[i].faceUp ? offsets.faceUpOffset : offsets.faceDownOffset;
       }
 
+      // Check if this stack is compressed (cards overlapping more than ideal)
+      const isCompressed = isStackCompressed(offsets, column.length);
+
       return {
         offsets,
         stackHeight,
         maxHeight: isExpanded ? expandedMaxHeight : maxHeight,
         needsScroll: offsets.needsScroll,
+        isCompressed,
       };
     });
   }, [gameState.tableau, rowHeights, cardHeight, expandedColumn, containerDimensions.height]);
@@ -450,8 +455,13 @@ export function GameBoard() {
                               cardHeight={cardHeight}
                               onClick={() => {
                                 if (isExpanded) {
+                                  // When expanded, any tap collapses
+                                  handleColumnTap(colIndex);
+                                } else if (!card.faceUp && columnLayout.isCompressed) {
+                                  // Tapping face-down cards in compressed stack expands it
                                   handleColumnTap(colIndex);
                                 } else {
+                                  // Normal card tap behavior
                                   handleCardTap(colIndex, cardIndex);
                                 }
                               }}
@@ -465,14 +475,36 @@ export function GameBoard() {
                           </div>
                         );
                       })}
-                      {/* Expand indicator for compressed stacks */}
-                      {!isExpanded && column.length > 5 && (
+                      {/* Tap zone overlay for compressed stacks - covers top portion */}
+                      {columnLayout.isCompressed && !isExpanded && column.length > 1 && (
                         <div
-                          className="absolute -top-5 left-0 right-0 flex justify-center cursor-pointer z-10"
-                          onClick={() => handleColumnTap(colIndex)}
+                          className="absolute top-0 left-0 right-0 cursor-pointer z-10"
+                          style={{ height: Math.min(columnLayout.stackHeight * 0.4, 60) }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleColumnTap(colIndex);
+                          }}
                         >
-                          <span className="text-white/70 text-[10px] bg-black/50 px-1.5 py-0.5 rounded">
-                            {column.length} cards
+                          {/* Gradient hint that stack continues */}
+                          <div className="absolute inset-0 bg-gradient-to-b from-black/30 to-transparent rounded-t-lg pointer-events-none" />
+                        </div>
+                      )}
+                      {/* Expand/Collapse indicator button */}
+                      {(columnLayout.isCompressed || isExpanded) && column.length > 1 && (
+                        <div
+                          className="absolute -top-6 left-0 right-0 flex justify-center cursor-pointer z-20"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleColumnTap(colIndex);
+                          }}
+                        >
+                          <span className={`
+                            text-[10px] px-2 py-1 rounded-full font-medium shadow-lg
+                            ${isExpanded
+                              ? 'bg-blue-500 text-white'
+                              : 'bg-amber-500 text-white animate-pulse'}
+                          `}>
+                            {isExpanded ? '▼ tap to close' : `▲ ${column.length} cards`}
                           </span>
                         </div>
                       )}
