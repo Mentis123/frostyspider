@@ -22,7 +22,7 @@ interface Selection {
 }
 
 export function GameBoard() {
-  const { gameState, moveCards, autoMove, deal, canUndo } = useGame();
+  const { gameState, moveCards, deal } = useGame();
   const [selection, setSelection] = useState<Selection | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
   const boardRef = useRef<HTMLDivElement>(null);
@@ -71,32 +71,6 @@ export function GameBoard() {
       }
     },
     [selection, gameState.tableau, moveCards]
-  );
-
-  // Handle double-tap for auto-move
-  const lastTapRef = useRef<{ column: number; cardIndex: number; time: number } | null>(null);
-
-  const handleCardClick = useCallback(
-    (column: number, cardIndex: number) => {
-      const now = Date.now();
-      const lastTap = lastTapRef.current;
-
-      if (
-        lastTap &&
-        lastTap.column === column &&
-        lastTap.cardIndex === cardIndex &&
-        now - lastTap.time < 300
-      ) {
-        // Double tap - auto move
-        autoMove(column, cardIndex);
-        setSelection(null);
-        lastTapRef.current = null;
-      } else {
-        lastTapRef.current = { column, cardIndex, time: now };
-        handleCardTap(column, cardIndex);
-      }
-    },
-    [autoMove, handleCardTap]
   );
 
   // Handle empty column tap
@@ -314,7 +288,7 @@ export function GameBoard() {
                         card={card}
                         stackOffset={stackOffset}
                         isSelected={!!isSelected}
-                        onClick={() => handleCardClick(colIndex, cardIndex)}
+                        onClick={() => handleCardTap(colIndex, cardIndex)}
                         onMouseDown={(e: React.MouseEvent) =>
                           card.faceUp && handleMouseDown(e, colIndex, cardIndex)
                         }
