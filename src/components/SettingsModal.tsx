@@ -7,6 +7,7 @@ import { GameSettings } from '@/lib/types';
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onShowSplash: () => void;
 }
 
 // Detect iOS (Safari, Chrome, Firefox on iOS all use WebKit)
@@ -16,7 +17,7 @@ function isIOS(): boolean {
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 }
 
-export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
+export function SettingsModal({ isOpen, onClose, onShowSplash }: SettingsModalProps) {
   const { gameState, updateSettings, newGame } = useGame();
   const { settings } = gameState;
   const onIOS = useMemo(() => isIOS(), []);
@@ -30,6 +31,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const handleNewGame = () => {
     newGame(settings);
     onClose();
+  };
+
+  const handleShowSplash = () => {
+    onClose();
+    onShowSplash();
   };
 
   return (
@@ -115,6 +121,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               onChange={() => updateSettings({ showTimer: !settings.showTimer })}
             />
           </div>
+
+          {/* Splash Screen Button */}
+          <button
+            onClick={handleShowSplash}
+            className="w-full py-2 px-4 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg transition-colors text-sm"
+          >
+            Splash Screen
+          </button>
         </div>
 
         {/* Footer */}
