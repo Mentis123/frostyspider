@@ -159,9 +159,9 @@ export function StockPile({
               onClick={disabled ? undefined : onClick}
             />
           ))}
-          {/* Card count */}
-          <div className="absolute -bottom-5 left-0 right-0 text-center text-[0.6rem] sm:text-xs text-gray-300">
-            {remainingDeals} left
+          {/* Card count - compact */}
+          <div className="absolute -bottom-3.5 left-0 right-0 text-center text-[0.5rem] text-gray-400">
+            {remainingDeals}
           </div>
         </>
       ) : (
@@ -194,7 +194,7 @@ export function CompletedPile({ count, suit }: { count: number; suit?: Suit }) {
               </span>
             </div>
           ))}
-          <div className="absolute -bottom-5 left-0 right-0 text-center text-[0.6rem] sm:text-xs text-gray-300">
+          <div className="absolute -bottom-3.5 left-0 right-0 text-center text-[0.5rem] text-gray-400">
             {count}/8
           </div>
         </>
