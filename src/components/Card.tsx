@@ -105,21 +105,22 @@ export function Card({
       onTouchStart={onTouchStart}
     >
       {/* Header strip - visible when stacked - shows rank + suit */}
-      <div className={`absolute top-0 left-0 right-0 h-5 flex items-center justify-center gap-0.5 bg-white/90 border-b border-gray-200 rounded-t-md ${colorClass}`}>
-        <span className="text-xs font-bold leading-none">{card.rank}</span>
-        <span className="text-[0.6rem] leading-none">{symbol}</span>
+      <div className={`absolute top-0 left-0 right-0 h-[18px] flex items-center justify-center gap-0.5 bg-white/95 border-b border-gray-200 rounded-t-md ${colorClass}`}>
+        <span className="text-sm font-bold leading-none">{card.rank}</span>
+        <span className="text-xs leading-none">{symbol}</span>
       </div>
 
-      {/* Center - BIG rank number */}
-      <div className={`absolute inset-0 flex items-center justify-center ${colorClass} text-xl sm:text-3xl font-bold pt-4`}>
+      {/* Center - LARGE rank that fills the card */}
+      <div className={`absolute inset-0 flex items-center justify-center ${colorClass} font-black pt-2`}
+        style={{ fontSize: 'calc(var(--card-width) * 0.55)' }}>
         {card.rank}
       </div>
 
       {/* Bottom corners - suit symbols */}
-      <div className={`absolute bottom-0.5 left-1 ${colorClass} text-[0.5rem] leading-none`}>
+      <div className={`absolute bottom-0.5 left-1 ${colorClass} text-sm leading-none`}>
         {symbol}
       </div>
-      <div className={`absolute bottom-0.5 right-1 ${colorClass} text-[0.5rem] leading-none`}>
+      <div className={`absolute bottom-0.5 right-1 ${colorClass} text-sm leading-none`}>
         {symbol}
       </div>
     </div>

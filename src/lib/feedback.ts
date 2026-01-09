@@ -1,5 +1,6 @@
 // ============================================================================
 // AUDIO & FEEDBACK MANAGER - Immersive tactile experience system
+// Mobile-optimized with aggressive AudioContext resume (like data3-cisco-live)
 // ============================================================================
 
 type HapticPattern = 'light' | 'medium' | 'heavy' | 'success' | 'error';
@@ -21,8 +22,14 @@ function isIOS(): boolean {
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 }
 
+// Detect mobile device
+function isMobile(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /Mobile|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
 // ============================================================================
-// AUDIO MANAGER SINGLETON
+// AUDIO MANAGER SINGLETON - Mobile-first approach
 // ============================================================================
 
 class AudioManager {
@@ -31,8 +38,10 @@ class AudioManager {
   private audioUnlocked = false;
   private initListenerAdded = false;
   private unlockAttempts = 0;
+  private isMobileDevice = false;
 
   private constructor() {
+    this.isMobileDevice = isMobile();
     this.initializeWebAudio();
   }
 
@@ -51,75 +60,83 @@ class AudioManager {
         (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (AudioContextClass) {
         this.audioContext = new AudioContextClass();
-        audioLog('AudioContext created, initial state:', this.audioContext.state);
+        audioLog('AudioContext created, initial state:', this.audioContext.state, 'mobile:', this.isMobileDevice);
       }
     } catch (error) {
       console.warn('[AudioManager] Web Audio API not supported:', error);
     }
   }
 
-  // Unlock audio context for iOS - must be called from a user gesture
+  // Unlock audio context for iOS/mobile - called from every user gesture
   private unlockAudio(): void {
     if (!this.audioContext) {
       audioLog('No AudioContext available');
       return;
     }
 
-    if (this.audioUnlocked && this.audioContext.state === 'running') {
-      return; // Already unlocked and running
+    // On mobile, ALWAYS try to resume - don't skip even if "unlocked"
+    const needsUnlock = this.audioContext.state !== 'running';
+
+    if (!needsUnlock && !this.isMobileDevice) {
+      return; // Desktop and already running
     }
 
     this.unlockAttempts++;
-    audioLog(`Unlock attempt #${this.unlockAttempts}, current state:`, this.audioContext.state);
+    audioLog(`Unlock attempt #${this.unlockAttempts}, state: ${this.audioContext.state}, mobile: ${this.isMobileDevice}`);
 
-    // Create and play a silent buffer to unlock audio
+    // Create and play a silent buffer to unlock audio (critical for iOS)
     try {
       const buffer = this.audioContext.createBuffer(1, 1, 22050);
       const source = this.audioContext.createBufferSource();
       source.buffer = buffer;
       source.connect(this.audioContext.destination);
       source.start(0);
-      audioLog('Silent buffer played');
     } catch (error) {
-      audioLog('Silent buffer failed:', error);
+      // Silent fail - this is expected sometimes
     }
 
-    // Also resume the context
+    // Resume the context
     if (this.audioContext.state === 'suspended') {
       this.audioContext.resume().then(() => {
         this.audioUnlocked = true;
-        audioLog('Audio context resumed successfully! State:', this.audioContext?.state);
+        audioLog('Audio context resumed! State:', this.audioContext?.state);
       }).catch((error) => {
         audioLog('Resume failed:', error);
       });
     } else if (this.audioContext.state === 'running') {
       this.audioUnlocked = true;
-      audioLog('Audio context already running');
     }
   }
 
-  // Initialize audio system - sets up user interaction listeners for iOS unlock
+  // Initialize audio system - sets up persistent user interaction listeners
   public init(): void {
     if (typeof window === 'undefined') return;
 
-    audioLog('Initializing audio system, iOS detected:', isIOS());
+    audioLog('Initializing audio system, iOS:', isIOS(), 'mobile:', this.isMobileDevice);
 
-    // Always set up fresh listeners (don't gate on initListenerAdded for reliability)
     const unlockHandler = () => {
       this.unlockAudio();
     };
 
     if (!this.initListenerAdded) {
-      // Add listeners for various user interaction events - keep them persistent
+      // Keep these listeners FOREVER - mobile browsers can suspend audio anytime
       window.addEventListener('touchstart', unlockHandler, { passive: true });
       window.addEventListener('touchend', unlockHandler, { passive: true });
       window.addEventListener('click', unlockHandler, { passive: true });
+      window.addEventListener('mousedown', unlockHandler, { passive: true });
       window.addEventListener('keydown', unlockHandler, { passive: true });
+      // Also listen for visibility changes to re-unlock after tab switch
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          audioLog('Page visible again, attempting unlock');
+          this.unlockAudio();
+        }
+      });
       this.initListenerAdded = true;
-      audioLog('Event listeners added for audio unlock');
+      audioLog('Event listeners added for persistent audio unlock');
     }
 
-    // Try to unlock immediately in case we're already in a user gesture
+    // Try to unlock immediately
     this.unlockAudio();
   }
 
@@ -127,13 +144,29 @@ class AudioManager {
     return this.audioContext;
   }
 
-  // Ensure context is ready for playback
-  public ensureReady(): void {
+  // CRITICAL: Always call this before playing any sound
+  public async ensureReady(): Promise<boolean> {
+    if (!this.audioContext) return false;
+
+    // On mobile, ALWAYS try to resume
+    if (this.audioContext.state === 'suspended' || this.isMobileDevice) {
+      try {
+        await this.audioContext.resume();
+        if (this.audioContext.state === 'running') {
+          return true;
+        }
+      } catch (error) {
+        audioLog('ensureReady resume failed:', error);
+      }
+    }
+
+    return this.audioContext.state === 'running';
+  }
+
+  // Synchronous version - tries to resume but doesn't wait
+  public ensureReadySync(): void {
     if (this.audioContext?.state === 'suspended') {
-      audioLog('Context suspended, attempting resume...');
-      this.audioContext.resume().then(() => {
-        audioLog('Context resumed via ensureReady');
-      });
+      this.audioContext.resume().catch(() => {});
     }
   }
 
@@ -143,11 +176,12 @@ class AudioManager {
   }
 
   // Get debug info
-  public getDebugInfo(): { state: string; unlocked: boolean; attempts: number } {
+  public getDebugInfo(): { state: string; unlocked: boolean; attempts: number; mobile: boolean } {
     return {
       state: this.audioContext?.state ?? 'no-context',
       unlocked: this.audioUnlocked,
       attempts: this.unlockAttempts,
+      mobile: this.isMobileDevice,
     };
   }
 }
@@ -187,25 +221,29 @@ export function triggerHaptic(pattern: HapticPattern): void {
 // SOUND EFFECTS (Web Audio API - works everywhere including iOS)
 // ============================================================================
 
-export function playSound(effect: SoundEffect): void {
+export async function playSound(effect: SoundEffect): Promise<void> {
   const ctx = audioManager.getContext();
   if (!ctx) {
     audioLog('playSound called but no AudioContext available');
     return;
   }
 
-  // Resume audio context if suspended
-  audioManager.ensureReady();
+  // CRITICAL: Always try to resume on mobile - call this EVERY time
+  const isReady = await audioManager.ensureReady();
 
-  // Check if context is actually running
+  if (!isReady && ctx.state !== 'running') {
+    audioLog(`playSound: context not ready (state: ${ctx.state}), trying one more resume...`);
+    try {
+      await ctx.resume();
+    } catch (err) {
+      audioLog('Final resume attempt failed:', err);
+      return;
+    }
+  }
+
+  // Double-check we're running
   if (ctx.state !== 'running') {
-    audioLog(`playSound: context state is "${ctx.state}", attempting resume...`);
-    ctx.resume().then(() => {
-      audioLog('Context resumed, playing sound now');
-      playSoundInternal(ctx, effect);
-    }).catch((err) => {
-      audioLog('Failed to resume context:', err);
-    });
+    audioLog(`playSound: still not running after resume attempts (state: ${ctx.state})`);
     return;
   }
 
@@ -330,38 +368,39 @@ export function gameFeedback(
 ): void {
   const { soundEnabled, hapticEnabled } = options;
 
+  // Fire-and-forget pattern - don't await, just trigger
   switch (action) {
     case 'move':
       if (hapticEnabled) triggerHaptic('light');
-      if (soundEnabled) playSound('cardMove');
+      if (soundEnabled) void playSound('cardMove');
       break;
     case 'select':
       if (hapticEnabled) triggerHaptic('light');
-      if (soundEnabled) playSound('select');
+      if (soundEnabled) void playSound('select');
       break;
     case 'deal':
       if (hapticEnabled) triggerHaptic('medium');
-      if (soundEnabled) playSound('deal');
+      if (soundEnabled) void playSound('deal');
       break;
     case 'invalid':
       if (hapticEnabled) triggerHaptic('error');
-      if (soundEnabled) playSound('invalid');
+      if (soundEnabled) void playSound('invalid');
       break;
     case 'complete':
       if (hapticEnabled) triggerHaptic('success');
-      if (soundEnabled) playSound('complete');
+      if (soundEnabled) void playSound('complete');
       break;
     case 'win':
       if (hapticEnabled) triggerHaptic('success');
-      if (soundEnabled) playSound('win');
+      if (soundEnabled) void playSound('win');
       break;
     case 'undo':
       if (hapticEnabled) triggerHaptic('light');
-      if (soundEnabled) playSound('cardFlip');
+      if (soundEnabled) void playSound('cardFlip');
       break;
     case 'flip':
       if (hapticEnabled) triggerHaptic('light');
-      if (soundEnabled) playSound('cardFlip');
+      if (soundEnabled) void playSound('cardFlip');
       break;
   }
 }

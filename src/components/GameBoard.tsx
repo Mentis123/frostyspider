@@ -7,38 +7,121 @@ import { getValidSequence, canMoveToColumn } from '@/lib/gameEngine';
 import { Card as CardType } from '@/lib/types';
 import { gameFeedback } from '@/lib/feedback';
 
-// Hook to calculate responsive card dimensions for 3-3-4 layout
+// Hook to calculate responsive card dimensions - supports portrait (3-3-4) and landscape (10 across)
 function useCardDimensions() {
-  const [windowWidth, setWindowWidth] = useState(
-    typeof window !== 'undefined' ? window.innerWidth : 375
-  );
+  const [windowSize, setWindowSize] = useState({
+    width: typeof window !== 'undefined' ? window.innerWidth : 375,
+    height: typeof window !== 'undefined' ? window.innerHeight : 667,
+  });
 
   useEffect(() => {
-    const handleResize = () => setWindowWidth(window.innerWidth);
+    const handleResize = () => setWindowSize({
+      width: window.innerWidth,
+      height: window.innerHeight,
+    });
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   return useMemo(() => {
-    // Match CSS formula: min(72px, (100vw - 24px) / 4)
-    const cardWidth = Math.min(72, (windowWidth - 24) / 4);
+    // Detect landscape mode (width > height and wide enough for 10 columns)
+    const isLandscape = windowSize.width > windowSize.height && windowSize.width > 500;
+
+    let cardWidth: number;
+    let availableHeight: number;
+
+    if (isLandscape) {
+      // Landscape: fit all 10 columns across with small gaps
+      // Width: (cardWidth * 10) + (gaps * 11) = windowWidth - padding
+      // cardWidth = (windowWidth - padding - gaps) / 10
+      cardWidth = Math.min(80, (windowSize.width - 60) / 10);
+      // Available height: full height minus top bar and control bar
+      availableHeight = windowSize.height - 120;
+    } else {
+      // Portrait: 3-3-4 layout - max 4 columns per row
+      cardWidth = Math.min(72, (windowSize.width - 24) / 4);
+      // Available height for each row (3 rows)
+      availableHeight = (windowSize.height - 170) / 3;
+    }
+
     const cardHeight = cardWidth * 1.38;
     const columnWidth = cardWidth + 4;
     // Card stacking offsets - show enough to see card type in corners
     // Face-down cards: minimal peek since they're hidden anyway
-    const stackOffsetFacedown = Math.max(8, cardWidth * 0.12);
-    // Face-up cards: larger peek to see suit symbol in top-left corner
-    const stackOffsetFaceup = Math.max(24, cardWidth * 0.35);
+    const baseStackOffsetFacedown = Math.max(8, cardWidth * 0.12);
+    // Face-up cards: larger peek to see the header strip with rank/suit
+    const baseStackOffsetFaceup = Math.max(20, cardWidth * 0.28);
 
-    return { cardWidth, cardHeight, columnWidth, stackOffsetFacedown, stackOffsetFaceup };
-  }, [windowWidth]);
+    return {
+      cardWidth,
+      cardHeight,
+      columnWidth,
+      baseStackOffsetFacedown,
+      baseStackOffsetFaceup,
+      availableHeight,
+      isLandscape,
+    };
+  }, [windowSize.width, windowSize.height]);
 }
 
-// Row configuration: 3-3-4 layout
-const ROW_CONFIG = [
+// Calculate dynamic stack offsets for a column to fit within available height
+function calculateDynamicStackOffsets(
+  column: CardType[],
+  cardHeight: number,
+  baseOffsetFacedown: number,
+  baseOffsetFaceup: number,
+  availableHeight: number
+): { facedownOffset: number; faceupOffset: number } {
+  if (column.length <= 1) {
+    return { facedownOffset: baseOffsetFacedown, faceupOffset: baseOffsetFaceup };
+  }
+
+  // Count face-down and face-up cards (excluding the last card which shows full height)
+  let facedownCount = 0;
+  let faceupCount = 0;
+  for (let i = 0; i < column.length - 1; i++) {
+    if (column[i].faceUp) {
+      faceupCount++;
+    } else {
+      facedownCount++;
+    }
+  }
+
+  // Calculate needed height with base offsets
+  const neededHeight = cardHeight + (facedownCount * baseOffsetFacedown) + (faceupCount * baseOffsetFaceup);
+
+  // If it fits, use base offsets
+  if (neededHeight <= availableHeight) {
+    return { facedownOffset: baseOffsetFacedown, faceupOffset: baseOffsetFaceup };
+  }
+
+  // Need to compress - calculate scale factor
+  const stackSpace = availableHeight - cardHeight;
+  if (stackSpace <= 0) {
+    // Extreme case - just use minimum offsets
+    return { facedownOffset: 4, faceupOffset: 8 };
+  }
+
+  // Distribute available space proportionally
+  const totalBaseOffset = (facedownCount * baseOffsetFacedown) + (faceupCount * baseOffsetFaceup);
+  const scale = stackSpace / totalBaseOffset;
+
+  // Apply scale but enforce minimums (4px for facedown, 8px for faceup to show header)
+  const facedownOffset = Math.max(4, baseOffsetFacedown * scale);
+  const faceupOffset = Math.max(8, baseOffsetFaceup * scale);
+
+  return { facedownOffset, faceupOffset };
+}
+
+// Row configuration: 3-3-4 layout for portrait, single row for landscape
+const PORTRAIT_ROW_CONFIG = [
   [0, 1, 2],       // Row 1: columns 0-2
   [3, 4, 5],       // Row 2: columns 3-5
   [6, 7, 8, 9],    // Row 3: columns 6-9
+];
+
+const LANDSCAPE_ROW_CONFIG = [
+  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],  // All 10 columns in one row
 ];
 
 interface DragState {
@@ -62,7 +145,10 @@ export function GameBoard() {
   const [dragState, setDragState] = useState<DragState | null>(null);
   const boardRef = useRef<HTMLDivElement>(null);
   const columnRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const { cardWidth, cardHeight, columnWidth, stackOffsetFacedown, stackOffsetFaceup } = useCardDimensions();
+  const { cardWidth, cardHeight, columnWidth, baseStackOffsetFacedown, baseStackOffsetFaceup, availableHeight, isLandscape } = useCardDimensions();
+
+  // Select row config based on orientation
+  const rowConfig = isLandscape ? LANDSCAPE_ROW_CONFIG : PORTRAIT_ROW_CONFIG;
 
   // Calculate column positions for drop detection
   const getColumnAtPosition = useCallback((x: number, y: number): number | null => {
@@ -269,16 +355,19 @@ export function GameBoard() {
     }
   }, [canDealCards, deal, feedbackOptions]);
 
-  // Calculate total column height using responsive offsets
+  // Calculate total column height using dynamic offsets
   const getColumnHeight = useCallback((column: CardType[]): number => {
+    const { facedownOffset, faceupOffset } = calculateDynamicStackOffsets(
+      column, cardHeight, baseStackOffsetFacedown, baseStackOffsetFaceup, availableHeight
+    );
     let height = cardHeight;
     column.forEach((card, i) => {
       if (i > 0) {
-        height += card.faceUp ? stackOffsetFaceup : stackOffsetFacedown;
+        height += card.faceUp ? faceupOffset : facedownOffset;
       }
     });
     return height;
-  }, [cardHeight, stackOffsetFaceup, stackOffsetFacedown]);
+  }, [cardHeight, baseStackOffsetFacedown, baseStackOffsetFaceup, availableHeight]);
 
   return (
     <div
@@ -298,9 +387,9 @@ export function GameBoard() {
         />
       </div>
 
-      {/* Tableau - 3-3-4 row layout with minimal gaps */}
-      <div className="flex flex-col items-center px-1 pt-1 pb-1 gap-0.5 overflow-y-auto h-full no-scrollbar">
-        {ROW_CONFIG.map((rowCols, rowIndex) => (
+      {/* Tableau - 3-3-4 row layout (portrait) or 10-across (landscape) */}
+      <div className={`flex flex-col items-center px-1 pt-1 pb-1 gap-0.5 overflow-y-auto h-full no-scrollbar ${isLandscape ? 'justify-start' : ''}`}>
+        {rowConfig.map((rowCols, rowIndex) => (
           <div
             key={rowIndex}
             className="flex justify-center"
@@ -331,46 +420,52 @@ export function GameBoard() {
                   {column.length === 0 ? (
                     <EmptySlot onClick={() => handleEmptyColumnTap(colIndex)} />
                   ) : (
-                    column.map((card, cardIndex) => {
-                      // Don't render cards being dragged in their original position
-                      const isDragged =
-                        dragState &&
-                        dragState.fromCol === colIndex &&
-                        cardIndex >= dragState.cardIndex;
-
-                      const isSelected =
-                        selection &&
-                        selection.column === colIndex &&
-                        cardIndex >= selection.cardIndex;
-
-                      let stackOffset = 0;
-                      for (let i = 0; i < cardIndex; i++) {
-                        stackOffset += column[i].faceUp ? stackOffsetFaceup : stackOffsetFacedown;
-                      }
-
-                      return (
-                        <div
-                          key={card.id}
-                          style={{
-                            opacity: isDragged ? 0.3 : 1,
-                          }}
-                        >
-                          <Card
-                            card={card}
-                            stackOffset={stackOffset}
-                            isSelected={!!isSelected}
-                            isImmersive={isImmersive}
-                            onClick={() => handleCardTap(colIndex, cardIndex)}
-                            onMouseDown={(e: React.MouseEvent) =>
-                              card.faceUp && handleMouseDown(e, colIndex, cardIndex)
-                            }
-                            onTouchStart={(e: React.TouchEvent) =>
-                              card.faceUp && handleTouchStart(e, colIndex, cardIndex)
-                            }
-                          />
-                        </div>
+                    (() => {
+                      // Calculate dynamic offsets for this column
+                      const { facedownOffset, faceupOffset } = calculateDynamicStackOffsets(
+                        column, cardHeight, baseStackOffsetFacedown, baseStackOffsetFaceup, availableHeight
                       );
-                    })
+                      return column.map((card, cardIndex) => {
+                        // Don't render cards being dragged in their original position
+                        const isDragged =
+                          dragState &&
+                          dragState.fromCol === colIndex &&
+                          cardIndex >= dragState.cardIndex;
+
+                        const isSelected =
+                          selection &&
+                          selection.column === colIndex &&
+                          cardIndex >= selection.cardIndex;
+
+                        let stackOffset = 0;
+                        for (let i = 0; i < cardIndex; i++) {
+                          stackOffset += column[i].faceUp ? faceupOffset : facedownOffset;
+                        }
+
+                        return (
+                          <div
+                            key={card.id}
+                            style={{
+                              opacity: isDragged ? 0.3 : 1,
+                            }}
+                          >
+                            <Card
+                              card={card}
+                              stackOffset={stackOffset}
+                              isSelected={!!isSelected}
+                              isImmersive={isImmersive}
+                              onClick={() => handleCardTap(colIndex, cardIndex)}
+                              onMouseDown={(e: React.MouseEvent) =>
+                                card.faceUp && handleMouseDown(e, colIndex, cardIndex)
+                              }
+                              onTouchStart={(e: React.TouchEvent) =>
+                                card.faceUp && handleTouchStart(e, colIndex, cardIndex)
+                              }
+                            />
+                          </div>
+                        );
+                      });
+                    })()
                   )}
                 </div>
               );
@@ -392,7 +487,7 @@ export function GameBoard() {
             <Card
               key={card.id}
               card={card}
-              stackOffset={i * stackOffsetFaceup}
+              stackOffset={i * baseStackOffsetFaceup}
               isDragging
             />
           ))}

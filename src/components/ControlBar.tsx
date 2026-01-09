@@ -131,10 +131,10 @@ function CompactButton({
       className={`
         flex items-center justify-center
         w-10 h-10 rounded-lg
-        transition-colors
+        transition-all duration-150 ease-out
         ${disabled
           ? 'text-gray-600 cursor-not-allowed'
-          : 'text-gray-300 hover:text-white hover:bg-gray-700 active:bg-gray-600'
+          : 'text-gray-300 hover:text-white hover:bg-gray-700 hover:scale-110 active:scale-95 active:bg-gray-600'
         }
       `}
     >
