@@ -185,6 +185,9 @@ export function GameBoard() {
       const sequence = getValidSequence(gameState.tableau[column], cardIndex);
       if (!sequence) return;
 
+      // Collapse any expanded column when starting to drag
+      setExpandedColumn(null);
+
       setDragState({
         fromCol: column,
         cardIndex,
@@ -414,6 +417,7 @@ export function GameBoard() {
                       cardHeight={cardHeight}
                     />
                   ) : (
+                    <>
                     <div
                       className={`relative mt-auto ${columnLayout.needsScroll ? 'overflow-y-auto no-scrollbar' : ''}`}
                       style={{
@@ -454,22 +458,19 @@ export function GameBoard() {
                               cardWidth={cardWidth}
                               cardHeight={cardHeight}
                               onClick={() => {
-                                if (isExpanded) {
-                                  // When expanded, any tap collapses
-                                  handleColumnTap(colIndex);
-                                } else if (!card.faceUp && columnLayout.isCompressed) {
+                                if (!card.faceUp && columnLayout.isCompressed && !isExpanded) {
                                   // Tapping face-down cards in compressed stack expands it
                                   handleColumnTap(colIndex);
                                 } else {
-                                  // Normal card tap behavior
+                                  // Normal card tap behavior (works when expanded too)
                                   handleCardTap(colIndex, cardIndex);
                                 }
                               }}
                               onMouseDown={(e: React.MouseEvent) =>
-                                card.faceUp && !isExpanded && handleMouseDown(e, colIndex, cardIndex)
+                                card.faceUp && handleMouseDown(e, colIndex, cardIndex)
                               }
                               onTouchStart={(e: React.TouchEvent) =>
-                                card.faceUp && !isExpanded && handleTouchStart(e, colIndex, cardIndex)
+                                card.faceUp && handleTouchStart(e, colIndex, cardIndex)
                               }
                             />
                           </div>
@@ -489,26 +490,30 @@ export function GameBoard() {
                           <div className="absolute inset-0 bg-gradient-to-b from-black/30 to-transparent rounded-t-lg pointer-events-none" />
                         </div>
                       )}
-                      {/* Expand/Collapse indicator button */}
-                      {(columnLayout.isCompressed || isExpanded) && column.length > 1 && (
-                        <div
-                          className="absolute -top-6 left-0 right-0 flex justify-center cursor-pointer z-20"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleColumnTap(colIndex);
-                          }}
-                        >
-                          <span className={`
-                            text-[10px] px-2 py-1 rounded-full font-medium shadow-lg
-                            ${isExpanded
-                              ? 'bg-blue-500 text-white'
-                              : 'bg-amber-500 text-white animate-pulse'}
-                          `}>
-                            {isExpanded ? '▼ tap to close' : `▲ ${column.length} cards`}
-                          </span>
-                        </div>
-                      )}
                     </div>
+                    {/* Expand/Collapse indicator button - positioned above the card stack */}
+                    {(columnLayout.isCompressed || isExpanded) && column.length > 1 && (
+                      <div
+                        className="absolute left-0 right-0 flex justify-center cursor-pointer z-20"
+                        style={{
+                          bottom: columnLayout.stackHeight + 8,
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleColumnTap(colIndex);
+                        }}
+                      >
+                        <span className={`
+                          text-[10px] px-2 py-1 rounded-full font-medium shadow-lg
+                          ${isExpanded
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-amber-500 text-white animate-pulse'}
+                        `}>
+                          {isExpanded ? '▼ tap to close' : `▲ ${column.length} cards`}
+                        </span>
+                      </div>
+                    )}
+                    </>
                   )}
                 </div>
               );
