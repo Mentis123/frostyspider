@@ -44,12 +44,12 @@ const MAX_CARD_WIDTH = 90;
 const GAP_SIZE = 4;
 
 // Minimum peek values to maintain touch targets and visibility
-const MIN_FACEDOWN_PEEK = 6;   // Just enough to see card edge
-const MIN_FACEUP_PEEK = 16;    // Enough to see header strip (44pt touch target)
+const MIN_FACEDOWN_PEEK = 4;   // Just enough to see card edge
+const MIN_FACEUP_PEEK = 12;    // Enough to see header strip for identification
 
 // Ideal peek values for comfortable viewing
-const IDEAL_FACEDOWN_PEEK = 10;
-const IDEAL_FACEUP_PEEK = 28;
+const IDEAL_FACEDOWN_PEEK = 8;
+const IDEAL_FACEUP_PEEK = 22;
 
 // Row configurations
 const PORTRAIT_ROW_CONFIG = [
@@ -97,11 +97,17 @@ export function calculateLayout(config: LayoutConfig): LayoutResult {
     cardWidth = Math.min(MAX_CARD_WIDTH, Math.max(MIN_CARD_WIDTH, availableWidth / 4));
 
     // 3 rows with gaps between them
+    // Give slightly more space to bottom row (4 columns vs 3)
+    // Row 1: 3 cols, Row 2: 3 cols, Row 3: 4 cols
+    // Weight distribution: 28%, 28%, 44% to give more room to the denser bottom row
     const totalGaps = GAP_SIZE * 4; // top, between rows (x2), bottom
     const availableForRows = safeHeight - totalGaps;
-    const rowHeight = availableForRows / 3;
 
-    rowHeights = [rowHeight, rowHeight, rowHeight];
+    rowHeights = [
+      availableForRows * 0.28,
+      availableForRows * 0.28,
+      availableForRows * 0.44,
+    ];
   }
 
   const cardHeight = cardWidth * CARD_ASPECT_RATIO;
@@ -120,6 +126,7 @@ export function calculateLayout(config: LayoutConfig): LayoutResult {
 
 /**
  * Calculate smart stack offsets that compress to fit available height
+ * Always ensures cards fit - no scrolling needed
  */
 export function calculateSmartOverlap(
   cards: Card[],
@@ -148,13 +155,16 @@ export function calculateSmartOverlap(
   }
 
   const availableSpace = maxStackHeight - cardHeight;
+  const totalCardsToOffset = faceDownCount + faceUpCount;
 
-  // If no space for stacking, use minimums
-  if (availableSpace <= 0) {
+  // If no space for stacking or no cards to offset, use absolute minimums
+  if (availableSpace <= 0 || totalCardsToOffset === 0) {
+    // Scale down proportionally to fit - ensure all cards always visible
+    const absoluteMinPeek = Math.max(2, availableSpace / Math.max(totalCardsToOffset, 1));
     return {
-      faceDownOffset: MIN_FACEDOWN_PEEK,
-      faceUpOffset: MIN_FACEUP_PEEK,
-      needsScroll: true,
+      faceDownOffset: absoluteMinPeek,
+      faceUpOffset: absoluteMinPeek,
+      needsScroll: false,
     };
   }
 
@@ -173,12 +183,14 @@ export function calculateSmartOverlap(
   // Calculate minimum total space needed
   const minTotal = (faceDownCount * MIN_FACEDOWN_PEEK) + (faceUpCount * MIN_FACEUP_PEEK);
 
-  // If even minimums don't fit, use minimums and signal scroll needed
+  // If even minimums don't fit, scale down proportionally to ensure all cards fit
   if (minTotal >= availableSpace) {
+    // Calculate scale factor to make everything fit
+    const scale = availableSpace / minTotal;
     return {
-      faceDownOffset: MIN_FACEDOWN_PEEK,
-      faceUpOffset: MIN_FACEUP_PEEK,
-      needsScroll: true,
+      faceDownOffset: Math.max(2, MIN_FACEDOWN_PEEK * scale),
+      faceUpOffset: Math.max(3, MIN_FACEUP_PEEK * scale),
+      needsScroll: false,
     };
   }
 
