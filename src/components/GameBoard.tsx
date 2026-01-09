@@ -408,13 +408,13 @@ export function GameBoard() {
                   key={colIndex}
                   ref={el => { columnRefs.current[colIndex] = el; }}
                   className={`
-                    relative flex-shrink-0
+                    relative flex-shrink-0 flex flex-col justify-end
                     ${isValidTarget ? 'bg-green-600/30 rounded-lg' : ''}
                   `}
                   style={{
                     width: columnWidth,
                     minHeight: cardHeight + 10,
-                    height: Math.max(cardHeight + 10, getColumnHeight(column) + 4),
+                    height: isLandscape ? availableHeight : Math.max(cardHeight + 10, getColumnHeight(column) + 4),
                   }}
                   onClick={() => column.length === 0 && handleEmptyColumnTap(colIndex)}
                 >
@@ -426,46 +426,56 @@ export function GameBoard() {
                       const { facedownOffset, faceupOffset } = calculateDynamicStackOffsets(
                         column, cardHeight, baseStackOffsetFacedown, baseStackOffsetFaceup, availableHeight
                       );
-                      return column.map((card, cardIndex) => {
-                        // Don't render cards being dragged in their original position
-                        const isDragged =
-                          dragState &&
-                          dragState.fromCol === colIndex &&
-                          cardIndex >= dragState.cardIndex;
+                      // Calculate total stack height for bottom-alignment
+                      const stackHeight = getColumnHeight(column);
 
-                        const isSelected =
-                          selection &&
-                          selection.column === colIndex &&
-                          cardIndex >= selection.cardIndex;
+                      return (
+                        <div
+                          className="relative mt-auto"
+                          style={{ height: stackHeight, width: '100%' }}
+                        >
+                          {column.map((card, cardIndex) => {
+                            // Don't render cards being dragged in their original position
+                            const isDragged =
+                              dragState &&
+                              dragState.fromCol === colIndex &&
+                              cardIndex >= dragState.cardIndex;
 
-                        let stackOffset = 0;
-                        for (let i = 0; i < cardIndex; i++) {
-                          stackOffset += column[i].faceUp ? faceupOffset : facedownOffset;
-                        }
+                            const isSelected =
+                              selection &&
+                              selection.column === colIndex &&
+                              cardIndex >= selection.cardIndex;
 
-                        return (
-                          <div
-                            key={card.id}
-                            style={{
-                              opacity: isDragged ? 0.3 : 1,
-                            }}
-                          >
-                            <Card
-                              card={card}
-                              stackOffset={stackOffset}
-                              isSelected={!!isSelected}
-                              isImmersive={isImmersive}
-                              onClick={() => handleCardTap(colIndex, cardIndex)}
-                              onMouseDown={(e: React.MouseEvent) =>
-                                card.faceUp && handleMouseDown(e, colIndex, cardIndex)
-                              }
-                              onTouchStart={(e: React.TouchEvent) =>
-                                card.faceUp && handleTouchStart(e, colIndex, cardIndex)
-                              }
-                            />
-                          </div>
-                        );
-                      });
+                            let stackOffset = 0;
+                            for (let i = 0; i < cardIndex; i++) {
+                              stackOffset += column[i].faceUp ? faceupOffset : facedownOffset;
+                            }
+
+                            return (
+                              <div
+                                key={card.id}
+                                style={{
+                                  opacity: isDragged ? 0.3 : 1,
+                                }}
+                              >
+                                <Card
+                                  card={card}
+                                  stackOffset={stackOffset}
+                                  isSelected={!!isSelected}
+                                  isImmersive={isImmersive}
+                                  onClick={() => handleCardTap(colIndex, cardIndex)}
+                                  onMouseDown={(e: React.MouseEvent) =>
+                                    card.faceUp && handleMouseDown(e, colIndex, cardIndex)
+                                  }
+                                  onTouchStart={(e: React.TouchEvent) =>
+                                    card.faceUp && handleTouchStart(e, colIndex, cardIndex)
+                                  }
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
                     })()
                   )}
                 </div>
