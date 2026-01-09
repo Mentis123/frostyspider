@@ -273,3 +273,20 @@ export function getCardStackOffset(
   }
   return offset;
 }
+
+/**
+ * Check if a stack is compressed (cards are overlapping more than ideal)
+ * Returns true if any cards can't be seen clearly
+ */
+export function isStackCompressed(offsets: StackOffsets, cardCount: number): boolean {
+  // A stack needs expansion if:
+  // 1. It has more than 1 card, AND
+  // 2. The offsets are below ideal values
+  if (cardCount <= 1) return false;
+
+  // If either offset is notably below ideal, it's compressed
+  const faceDownCompressed = offsets.faceDownOffset < IDEAL_FACEDOWN_PEEK - 1;
+  const faceUpCompressed = offsets.faceUpOffset < IDEAL_FACEUP_PEEK - 2;
+
+  return faceDownCompressed || faceUpCompressed;
+}
