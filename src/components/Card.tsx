@@ -104,23 +104,22 @@ export function Card({
       onMouseDown={onMouseDown}
       onTouchStart={onTouchStart}
     >
-      {/* Header strip - visible when stacked - shows rank + suit */}
-      <div className={`absolute top-0 left-0 right-0 h-[18px] flex items-center justify-center gap-0.5 bg-white/95 border-b border-gray-200 rounded-t-md ${colorClass}`}>
-        <span className="text-sm font-bold leading-none">{card.rank}</span>
-        <span className="text-xs leading-none">{symbol}</span>
+      {/* Header strip - visible when stacked - BIG rank + suit */}
+      <div className={`absolute top-0 left-0 right-0 flex items-center justify-center gap-0.5 bg-white border-b border-gray-300 rounded-t-md ${colorClass}`}
+        style={{ height: 'calc(var(--card-width) * 0.28)' }}>
+        <span className="font-black leading-none" style={{ fontSize: 'calc(var(--card-width) * 0.22)' }}>{card.rank}</span>
+        <span className="leading-none" style={{ fontSize: 'calc(var(--card-width) * 0.18)' }}>{symbol}</span>
       </div>
 
-      {/* Center - LARGE rank that fills the card */}
-      <div className={`absolute inset-0 flex items-center justify-center ${colorClass} font-black pt-2`}
-        style={{ fontSize: 'calc(var(--card-width) * 0.55)' }}>
+      {/* Center - HUGE rank that fills the card */}
+      <div className={`absolute inset-0 flex items-center justify-center ${colorClass} font-black`}
+        style={{ fontSize: 'calc(var(--card-width) * 0.7)', paddingTop: 'calc(var(--card-width) * 0.1)' }}>
         {card.rank}
       </div>
 
-      {/* Bottom corners - suit symbols */}
-      <div className={`absolute bottom-0.5 left-1 ${colorClass} text-sm leading-none`}>
-        {symbol}
-      </div>
-      <div className={`absolute bottom-0.5 right-1 ${colorClass} text-sm leading-none`}>
+      {/* Bottom - suit symbol */}
+      <div className={`absolute bottom-0 left-0 right-0 flex justify-center ${colorClass}`}
+        style={{ fontSize: 'calc(var(--card-width) * 0.25)' }}>
         {symbol}
       </div>
     </div>
