@@ -6,10 +6,15 @@ import { ControlBar } from './ControlBar';
 import { SettingsModal } from './SettingsModal';
 import { WinModal } from './WinModal';
 import { useGame } from '@/contexts/GameContext';
-import { gameFeedback } from '@/lib/feedback';
+import { gameFeedback, initAudio } from '@/lib/feedback';
 
 export function Game() {
   const { gameState, newGame } = useGame();
+
+  // Initialize audio system on mount (needed for iOS)
+  useEffect(() => {
+    initAudio();
+  }, []);
   const [showSettings, setShowSettings] = useState(false);
   const [showWin, setShowWin] = useState(false);
   const [showNewGameConfirm, setShowNewGameConfirm] = useState(false);
@@ -19,7 +24,8 @@ export function Game() {
   const feedbackOptions = useMemo(() => ({
     soundEnabled: gameState.settings.soundEnabled,
     hapticEnabled: gameState.settings.hapticEnabled,
-  }), [gameState.settings.soundEnabled, gameState.settings.hapticEnabled]);
+    immersiveEnabled: gameState.settings.immersiveEnabled,
+  }), [gameState.settings.soundEnabled, gameState.settings.hapticEnabled, gameState.settings.immersiveEnabled]);
 
   // Show win modal when game is won
   useEffect(() => {

@@ -23,6 +23,7 @@ export interface GameSettings {
   suitCount: 1 | 2 | 4; // Number of suits to use
   soundEnabled: boolean;
   hapticEnabled: boolean;
+  immersiveEnabled: boolean; // Visual push effects for tactile feel
   animationsEnabled: boolean;
   autoComplete: boolean;
   showTimer: boolean;
@@ -67,6 +68,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
   suitCount: 1,
   soundEnabled: true,
   hapticEnabled: true,
+  immersiveEnabled: true,
   animationsEnabled: true,
   autoComplete: true,
   showTimer: true,

@@ -7,6 +7,7 @@ interface CardProps {
   card: CardType;
   isSelected?: boolean;
   isHinted?: boolean;
+  isImmersive?: boolean;
   onClick?: () => void;
   onMouseDown?: (e: React.MouseEvent) => void;
   onTouchStart?: (e: React.TouchEvent) => void;
@@ -33,6 +34,7 @@ export function Card({
   card,
   isSelected = false,
   isHinted = false,
+  isImmersive = false,
   onClick,
   onMouseDown,
   onTouchStart,
@@ -42,6 +44,17 @@ export function Card({
 }: CardProps) {
   const symbol = suitSymbols[card.suit];
   const colorClass = suitColors[card.suit];
+
+  // Immersive push effect styles
+  const immersiveClasses = isImmersive && card.faceUp && onClick
+    ? 'transition-all duration-150 ease-out hover:translate-y-[2px] active:translate-y-[4px]'
+    : '';
+
+  const immersiveShadow = isImmersive && card.faceUp && onClick
+    ? {
+        boxShadow: '0 4px 0 rgba(0,0,0,0.25), 0 6px 12px rgba(0,0,0,0.15)',
+      }
+    : {};
 
   if (!card.faceUp) {
     // Face down card
@@ -69,15 +82,18 @@ export function Card({
         bg-white border-2
         ${isSelected ? 'border-yellow-400 ring-2 ring-yellow-400 z-10' : 'border-gray-300'}
         ${isHinted ? 'border-green-400 ring-2 ring-green-400 animate-pulse' : ''}
-        ${isDragging ? 'shadow-xl scale-105 z-50' : 'shadow-md'}
-        ${onClick ? 'cursor-pointer active:scale-95' : ''}
-        transition-transform duration-100
+        ${isDragging ? 'shadow-xl scale-105 z-50' : isImmersive ? '' : 'shadow-md'}
+        ${onClick && !isImmersive ? 'cursor-pointer active:scale-95' : ''}
+        ${onClick && isImmersive ? 'cursor-pointer' : ''}
+        ${immersiveClasses}
+        ${!isImmersive ? 'transition-transform duration-100' : ''}
         select-none touch-none
       `}
       style={{
         width: 'var(--card-width)',
         height: 'var(--card-height)',
         top: stackOffset,
+        ...immersiveShadow,
         ...style,
       }}
       onClick={onClick}
