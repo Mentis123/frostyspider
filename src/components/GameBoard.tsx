@@ -24,9 +24,11 @@ function useCardDimensions() {
     const cardWidth = Math.min(72, (windowWidth - 24) / 4);
     const cardHeight = cardWidth * 1.38;
     const columnWidth = cardWidth + 4;
-    // Very tight stack offsets for compact mobile layout
-    const stackOffsetFacedown = Math.max(2, cardWidth * 0.05);
-    const stackOffsetFaceup = Math.max(8, cardWidth * 0.14);
+    // Card stacking offsets - show enough to see card type in corners
+    // Face-down cards: minimal peek since they're hidden anyway
+    const stackOffsetFacedown = Math.max(8, cardWidth * 0.12);
+    // Face-up cards: larger peek to see suit symbol in top-left corner
+    const stackOffsetFaceup = Math.max(24, cardWidth * 0.35);
 
     return { cardWidth, cardHeight, columnWidth, stackOffsetFacedown, stackOffsetFaceup };
   }, [windowWidth]);

@@ -11,9 +11,11 @@
   --card-gap: 4px;
   --column-width: calc(var(--card-width) + 4px);
 
-  /* Very tight card overlap for compact mobile layout */
-  --stack-offset-facedown: max(2px, calc(var(--card-width) * 0.05));
-  --stack-offset-faceup: max(8px, calc(var(--card-width) * 0.14));
+  /* Card stacking offsets - show enough to see card type in corners */
+  /* Face-down cards: minimal peek since they're hidden anyway */
+  --stack-offset-facedown: max(8px, calc(var(--card-width) * 0.12));
+  /* Face-up cards: larger peek to see suit symbol in top-left corner */
+  --stack-offset-faceup: max(24px, calc(var(--card-width) * 0.35));
 }
 
 @theme inline {

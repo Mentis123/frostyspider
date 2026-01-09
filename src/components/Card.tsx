@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Card as CardType, Suit } from '@/lib/types';
+import { FrostySpider } from './FrostySpider';
 
 interface CardProps {
   card: CardType;
@@ -57,10 +58,10 @@ export function Card({
     : {};
 
   if (!card.faceUp) {
-    // Face down card
+    // Face down card - Custom Frosty Spider card back!
     return (
       <div
-        className="absolute rounded-lg bg-gradient-to-br from-blue-600 to-blue-800 border-2 border-blue-400 shadow-md flex items-center justify-center select-none"
+        className="absolute rounded-lg border-2 border-blue-400 shadow-md select-none overflow-hidden"
         style={{
           width: 'var(--card-width)',
           height: 'var(--card-height)',
@@ -68,9 +69,12 @@ export function Card({
           ...style,
         }}
       >
-        <div className="w-[75%] h-[75%] rounded border border-blue-400 bg-blue-700 flex items-center justify-center">
-          <span className="text-blue-300 text-base sm:text-2xl">🕷️</span>
-        </div>
+        <img
+          src="/card_back.jpg"
+          alt="Card back"
+          className="w-full h-full object-cover"
+          draggable={false}
+        />
       </div>
     );
   }
@@ -100,18 +104,22 @@ export function Card({
       onMouseDown={onMouseDown}
       onTouchStart={onTouchStart}
     >
-      {/* Top left - small suit symbol */}
-      <div className={`absolute top-0.5 left-1 ${colorClass} text-[0.5rem] leading-none`}>
-        {symbol}
+      {/* Header strip - visible when stacked - shows rank + suit */}
+      <div className={`absolute top-0 left-0 right-0 h-5 flex items-center justify-center gap-0.5 bg-white/90 border-b border-gray-200 rounded-t-md ${colorClass}`}>
+        <span className="text-xs font-bold leading-none">{card.rank}</span>
+        <span className="text-[0.6rem] leading-none">{symbol}</span>
       </div>
 
       {/* Center - BIG rank number */}
-      <div className={`absolute inset-0 flex items-center justify-center ${colorClass} text-xl sm:text-3xl font-bold`}>
+      <div className={`absolute inset-0 flex items-center justify-center ${colorClass} text-xl sm:text-3xl font-bold pt-4`}>
         {card.rank}
       </div>
 
-      {/* Bottom right - small suit symbol (inverted) */}
-      <div className={`absolute bottom-0.5 right-1 ${colorClass} text-[0.5rem] leading-none rotate-180`}>
+      {/* Bottom corners - suit symbols */}
+      <div className={`absolute bottom-0.5 left-1 ${colorClass} text-[0.5rem] leading-none`}>
+        {symbol}
+      </div>
+      <div className={`absolute bottom-0.5 right-1 ${colorClass} text-[0.5rem] leading-none`}>
         {symbol}
       </div>
     </div>
@@ -153,14 +161,14 @@ export function StockPile({
     <div className="relative" style={{ width: 'var(--card-width)', height: 'var(--card-height)' }}>
       {piles > 0 ? (
         <>
-          {/* Stack effect */}
+          {/* Stack effect with custom card back */}
           {Array.from({ length: Math.min(piles, 5) }).map((_, i) => (
             <div
               key={i}
               className={`
                 absolute rounded-lg
-                bg-gradient-to-br from-blue-600 to-blue-800
                 border-2 border-blue-400
+                overflow-hidden
                 ${disabled ? 'opacity-50' : 'cursor-pointer active:scale-95'}
               `}
               style={{
@@ -171,7 +179,14 @@ export function StockPile({
                 zIndex: 5 - i,
               }}
               onClick={disabled ? undefined : onClick}
-            />
+            >
+              <img
+                src="/card_back.jpg"
+                alt="Card back"
+                className="w-full h-full object-cover"
+                draggable={false}
+              />
+            </div>
           ))}
           {/* Card count - compact */}
           <div className="absolute -bottom-3.5 left-0 right-0 text-center text-[0.5rem] text-gray-400">

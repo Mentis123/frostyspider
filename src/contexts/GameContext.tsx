@@ -131,18 +131,34 @@ function reducer(state: StateWithHistory, action: Action): StateWithHistory {
 const STORAGE_KEY = 'frosty-spider-solitaire';
 const SETTINGS_KEY = 'frosty-spider-settings';
 
+// Create a deterministic placeholder state for SSR (same on server and client)
+// This prevents hydration mismatch since actual game init happens in useEffect
+function createPlaceholderState(): GameState {
+  return {
+    tableau: Array(10).fill(null).map(() => []),
+    stock: [],
+    completed: [],
+    moves: 0,
+    startTime: null,
+    isWon: false,
+    settings: DEFAULT_SETTINGS,
+  };
+}
+
 export function GameProvider({ children }: { children: React.ReactNode }) {
+  const [isClient, setIsClient] = React.useState(false);
   const [state, dispatch] = useReducer(reducer, null, () => {
-    // Initialize with default state
+    // Initialize with empty placeholder - same on server and client
     return {
-      current: initializeGame(DEFAULT_SETTINGS),
+      current: createPlaceholderState(),
       history: [],
       future: [],
     };
   });
 
-  // Load saved game and settings on mount
+  // Load saved game and settings on mount (client-only)
   useEffect(() => {
+    setIsClient(true);
     try {
       const savedSettings = localStorage.getItem(SETTINGS_KEY);
       const settings: GameSettings = savedSettings

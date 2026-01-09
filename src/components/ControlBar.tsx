@@ -71,8 +71,20 @@ export function ControlBar({ onSettingsClick, onNewGameClick }: ControlBarProps)
         <div className="flex items-center gap-0.5">
           <CompactButton onClick={handleUndo} disabled={!canUndo} icon="undo" />
           <CompactButton onClick={handleRedo} disabled={!canRedo} icon="redo" />
-          <CompactButton onClick={onNewGameClick} icon="new" />
-          <CompactButton onClick={onSettingsClick} icon="settings" />
+          <CompactButton
+            onClick={() => {
+              gameFeedback('select', feedbackOptions);
+              onNewGameClick();
+            }}
+            icon="new"
+          />
+          <CompactButton
+            onClick={() => {
+              gameFeedback('select', feedbackOptions);
+              onSettingsClick();
+            }}
+            icon="settings"
+          />
         </div>
       </div>
     </div>

@@ -5,6 +5,15 @@
 type HapticPattern = 'light' | 'medium' | 'heavy' | 'success' | 'error';
 type SoundEffect = 'cardMove' | 'cardPlace' | 'cardFlip' | 'deal' | 'select' | 'invalid' | 'complete' | 'win';
 
+// Debug flag - set to true to see audio logs in console
+const AUDIO_DEBUG = true;
+
+function audioLog(...args: unknown[]): void {
+  if (AUDIO_DEBUG) {
+    console.log('[AudioManager]', ...args);
+  }
+}
+
 // Detect iOS (Safari, Chrome, Firefox on iOS all use WebKit)
 function isIOS(): boolean {
   if (typeof navigator === 'undefined') return false;
@@ -21,6 +30,7 @@ class AudioManager {
   private audioContext: AudioContext | null = null;
   private audioUnlocked = false;
   private initListenerAdded = false;
+  private unlockAttempts = 0;
 
   private constructor() {
     this.initializeWebAudio();
@@ -41,6 +51,7 @@ class AudioManager {
         (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (AudioContextClass) {
         this.audioContext = new AudioContextClass();
+        audioLog('AudioContext created, initial state:', this.audioContext.state);
       }
     } catch (error) {
       console.warn('[AudioManager] Web Audio API not supported:', error);
@@ -49,45 +60,67 @@ class AudioManager {
 
   // Unlock audio context for iOS - must be called from a user gesture
   private unlockAudio(): void {
-    if (!this.audioContext || this.audioUnlocked) return;
+    if (!this.audioContext) {
+      audioLog('No AudioContext available');
+      return;
+    }
+
+    if (this.audioUnlocked && this.audioContext.state === 'running') {
+      return; // Already unlocked and running
+    }
+
+    this.unlockAttempts++;
+    audioLog(`Unlock attempt #${this.unlockAttempts}, current state:`, this.audioContext.state);
 
     // Create and play a silent buffer to unlock audio
-    const buffer = this.audioContext.createBuffer(1, 1, 22050);
-    const source = this.audioContext.createBufferSource();
-    source.buffer = buffer;
-    source.connect(this.audioContext.destination);
-    source.start(0);
+    try {
+      const buffer = this.audioContext.createBuffer(1, 1, 22050);
+      const source = this.audioContext.createBufferSource();
+      source.buffer = buffer;
+      source.connect(this.audioContext.destination);
+      source.start(0);
+      audioLog('Silent buffer played');
+    } catch (error) {
+      audioLog('Silent buffer failed:', error);
+    }
 
     // Also resume the context
     if (this.audioContext.state === 'suspended') {
       this.audioContext.resume().then(() => {
         this.audioUnlocked = true;
-        console.log('[AudioManager] Audio context unlocked');
+        audioLog('Audio context resumed successfully! State:', this.audioContext?.state);
+      }).catch((error) => {
+        audioLog('Resume failed:', error);
       });
-    } else {
+    } else if (this.audioContext.state === 'running') {
       this.audioUnlocked = true;
+      audioLog('Audio context already running');
     }
   }
 
   // Initialize audio system - sets up user interaction listeners for iOS unlock
   public init(): void {
-    if (typeof window === 'undefined' || this.initListenerAdded) return;
+    if (typeof window === 'undefined') return;
 
+    audioLog('Initializing audio system, iOS detected:', isIOS());
+
+    // Always set up fresh listeners (don't gate on initListenerAdded for reliability)
     const unlockHandler = () => {
       this.unlockAudio();
-      // Keep listeners for a bit since iOS may need multiple interactions
-      setTimeout(() => {
-        window.removeEventListener('touchstart', unlockHandler);
-        window.removeEventListener('touchend', unlockHandler);
-        window.removeEventListener('click', unlockHandler);
-      }, 1000);
     };
 
-    // Add listeners for various user interaction events
-    window.addEventListener('touchstart', unlockHandler, { passive: true });
-    window.addEventListener('touchend', unlockHandler, { passive: true });
-    window.addEventListener('click', unlockHandler, { passive: true });
-    this.initListenerAdded = true;
+    if (!this.initListenerAdded) {
+      // Add listeners for various user interaction events - keep them persistent
+      window.addEventListener('touchstart', unlockHandler, { passive: true });
+      window.addEventListener('touchend', unlockHandler, { passive: true });
+      window.addEventListener('click', unlockHandler, { passive: true });
+      window.addEventListener('keydown', unlockHandler, { passive: true });
+      this.initListenerAdded = true;
+      audioLog('Event listeners added for audio unlock');
+    }
+
+    // Try to unlock immediately in case we're already in a user gesture
+    this.unlockAudio();
   }
 
   public getContext(): AudioContext | null {
@@ -97,8 +130,25 @@ class AudioManager {
   // Ensure context is ready for playback
   public ensureReady(): void {
     if (this.audioContext?.state === 'suspended') {
-      this.audioContext.resume();
+      audioLog('Context suspended, attempting resume...');
+      this.audioContext.resume().then(() => {
+        audioLog('Context resumed via ensureReady');
+      });
     }
+  }
+
+  // Check if audio is currently working
+  public isReady(): boolean {
+    return this.audioContext !== null && this.audioContext.state === 'running';
+  }
+
+  // Get debug info
+  public getDebugInfo(): { state: string; unlocked: boolean; attempts: number } {
+    return {
+      state: this.audioContext?.state ?? 'no-context',
+      unlocked: this.audioUnlocked,
+      attempts: this.unlockAttempts,
+    };
   }
 }
 
@@ -139,10 +189,31 @@ export function triggerHaptic(pattern: HapticPattern): void {
 
 export function playSound(effect: SoundEffect): void {
   const ctx = audioManager.getContext();
-  if (!ctx) return;
+  if (!ctx) {
+    audioLog('playSound called but no AudioContext available');
+    return;
+  }
 
   // Resume audio context if suspended
   audioManager.ensureReady();
+
+  // Check if context is actually running
+  if (ctx.state !== 'running') {
+    audioLog(`playSound: context state is "${ctx.state}", attempting resume...`);
+    ctx.resume().then(() => {
+      audioLog('Context resumed, playing sound now');
+      playSoundInternal(ctx, effect);
+    }).catch((err) => {
+      audioLog('Failed to resume context:', err);
+    });
+    return;
+  }
+
+  playSoundInternal(ctx, effect);
+}
+
+function playSoundInternal(ctx: AudioContext, effect: SoundEffect): void {
+  audioLog(`Playing sound effect: ${effect}`);
 
   const oscillator = ctx.createOscillator();
   const gainNode = ctx.createGain();

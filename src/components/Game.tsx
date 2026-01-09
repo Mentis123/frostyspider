@@ -1,20 +1,40 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { GameBoard } from './GameBoard';
 import { ControlBar } from './ControlBar';
 import { SettingsModal } from './SettingsModal';
 import { WinModal } from './WinModal';
+import { SplashScreen } from './SplashScreen';
 import { useGame } from '@/contexts/GameContext';
 import { gameFeedback, initAudio } from '@/lib/feedback';
 
 export function Game() {
   const { gameState, newGame } = useGame();
 
-  // Initialize audio system on mount (needed for iOS)
+  // Splash screen state - starts false to avoid hydration mismatch
+  const [showSplash, setShowSplash] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  // Check sessionStorage on client mount
   useEffect(() => {
+    setIsClient(true);
+    const hasSeenSplash = sessionStorage.getItem('frosty-spider-splash-shown');
+    if (!hasSeenSplash) {
+      setShowSplash(true);
+    } else {
+      // If splash already shown, init audio immediately
+      initAudio();
+    }
+  }, []);
+
+  const handleSplashComplete = useCallback(() => {
+    setShowSplash(false);
+    sessionStorage.setItem('frosty-spider-splash-shown', 'true');
+    // Initialize audio after splash (user interaction helps unlock audio)
     initAudio();
   }, []);
+
   const [showSettings, setShowSettings] = useState(false);
   const [showWin, setShowWin] = useState(false);
   const [showNewGameConfirm, setShowNewGameConfirm] = useState(false);
@@ -61,6 +81,11 @@ export function Game() {
 
   return (
     <div className="flex flex-col h-[100dvh] bg-gray-900">
+      {/* Splash screen - shows briefly on first load */}
+      {showSplash && (
+        <SplashScreen onComplete={handleSplashComplete} duration={2500} />
+      )}
+
       {/* Game area - maximized */}
       <main className="flex-1 overflow-hidden">
         <GameBoard />
