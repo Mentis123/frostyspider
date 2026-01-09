@@ -2,9 +2,19 @@
 
 type HapticPattern = 'light' | 'medium' | 'heavy' | 'success' | 'error';
 
+// Detect iOS (Safari, Chrome, Firefox on iOS all use WebKit)
+function isIOS(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
 // Haptic feedback using Vibration API
+// Note: Vibration API is NOT supported on iOS (any browser) - this is a platform limitation
 export function triggerHaptic(pattern: HapticPattern): void {
   if (typeof navigator === 'undefined' || !navigator.vibrate) return;
+  // Skip on iOS since Vibration API is not supported
+  if (isIOS()) return;
 
   switch (pattern) {
     case 'light':
@@ -30,6 +40,8 @@ type SoundEffect = 'cardMove' | 'cardPlace' | 'cardFlip' | 'deal' | 'select' | '
 
 // Audio context for Web Audio API (better mobile support)
 let audioContext: AudioContext | null = null;
+let audioUnlocked = false;
+let initListenerAdded = false;
 
 function getAudioContext(): AudioContext | null {
   if (typeof window === 'undefined') return null;
@@ -42,6 +54,52 @@ function getAudioContext(): AudioContext | null {
     }
   }
   return audioContext;
+}
+
+// Unlock audio context for iOS - must be called from a user gesture
+function unlockAudio(): void {
+  const ctx = getAudioContext();
+  if (!ctx || audioUnlocked) return;
+
+  // Create and play a silent buffer to unlock audio
+  const buffer = ctx.createBuffer(1, 1, 22050);
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  source.connect(ctx.destination);
+  source.start(0);
+
+  // Also resume the context
+  if (ctx.state === 'suspended') {
+    ctx.resume().then(() => {
+      audioUnlocked = true;
+    });
+  } else {
+    audioUnlocked = true;
+  }
+}
+
+// Initialize audio system - call this early to set up user interaction listeners
+export function initAudio(): void {
+  if (typeof window === 'undefined' || initListenerAdded) return;
+
+  const unlockHandler = () => {
+    unlockAudio();
+    // Keep listeners for a bit since iOS may need multiple interactions
+    setTimeout(() => {
+      window.removeEventListener('touchstart', unlockHandler);
+      window.removeEventListener('touchend', unlockHandler);
+      window.removeEventListener('click', unlockHandler);
+    }, 1000);
+  };
+
+  // Add listeners for various user interaction events
+  window.addEventListener('touchstart', unlockHandler, { passive: true });
+  window.addEventListener('touchend', unlockHandler, { passive: true });
+  window.addEventListener('click', unlockHandler, { passive: true });
+  initListenerAdded = true;
+
+  // Also try to create context now (will be unlocked on first interaction)
+  getAudioContext();
 }
 
 // Generate synthesized sounds using Web Audio API

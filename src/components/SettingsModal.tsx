@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import { GameSettings } from '@/lib/types';
 
@@ -9,9 +9,17 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
+// Detect iOS (Safari, Chrome, Firefox on iOS all use WebKit)
+function isIOS(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { gameState, updateSettings, newGame } = useGame();
   const { settings } = gameState;
+  const onIOS = useMemo(() => isIOS(), []);
 
   if (!isOpen) return null;
 
@@ -83,6 +91,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               label="Haptic Feedback"
               checked={settings.hapticEnabled}
               onChange={() => updateSettings({ hapticEnabled: !settings.hapticEnabled })}
+              note={onIOS ? 'Not supported on iOS devices' : undefined}
             />
             <ToggleOption
               label="Animations"
@@ -126,28 +135,33 @@ function ToggleOption({
   label,
   checked,
   onChange,
+  note,
 }: {
   label: string;
   checked: boolean;
   onChange: () => void;
+  note?: string;
 }) {
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-gray-300">{label}</span>
-      <button
-        onClick={onChange}
-        className={`
-          relative w-12 h-6 rounded-full transition-colors
-          ${checked ? 'bg-blue-600' : 'bg-gray-600'}
-        `}
-      >
-        <span
+    <div>
+      <div className="flex items-center justify-between">
+        <span className="text-gray-300">{label}</span>
+        <button
+          onClick={onChange}
           className={`
-            absolute top-1 w-4 h-4 bg-white rounded-full transition-transform
-            ${checked ? 'left-7' : 'left-1'}
+            relative w-12 h-6 rounded-full transition-colors
+            ${checked ? 'bg-blue-600' : 'bg-gray-600'}
           `}
-        />
-      </button>
+        >
+          <span
+            className={`
+              absolute top-1 w-4 h-4 bg-white rounded-full transition-transform
+              ${checked ? 'left-7' : 'left-1'}
+            `}
+          />
+        </button>
+      </div>
+      {note && <p className="text-xs text-gray-500 mt-1">{note}</p>}
     </div>
   );
 }
