@@ -35,8 +35,9 @@ function useCardDimensions() {
       // Width: (cardWidth * 10) + (gaps * 11) = windowWidth - padding
       // cardWidth = (windowWidth - padding - gaps) / 10
       cardWidth = Math.min(80, (windowSize.width - 60) / 10);
-      // Available height: full height minus top bar and control bar
-      availableHeight = windowSize.height - 120;
+      // Available height: constrain tightly so stacks compress to fit on screen
+      // Top bar ~80px, control bar ~50px, padding ~10px
+      availableHeight = windowSize.height - 140;
     } else {
       // Portrait: 3-3-4 layout - max 4 columns per row
       cardWidth = Math.min(72, (windowSize.width - 24) / 4);
@@ -388,7 +389,7 @@ export function GameBoard() {
       </div>
 
       {/* Tableau - 3-3-4 row layout (portrait) or 10-across (landscape) */}
-      <div className={`flex flex-col items-center px-1 pt-1 pb-1 gap-0.5 overflow-y-auto h-full no-scrollbar ${isLandscape ? 'justify-start' : ''}`}>
+      <div className={`flex flex-col items-center px-1 pt-1 pb-1 gap-0.5 no-scrollbar ${isLandscape ? 'justify-start overflow-hidden' : 'overflow-y-auto h-full'}`}>
         {rowConfig.map((rowCols, rowIndex) => (
           <div
             key={rowIndex}
