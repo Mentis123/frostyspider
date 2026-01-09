@@ -345,20 +345,20 @@ export function GameBoard() {
       ref={boardRef}
       className="relative w-full h-full bg-gradient-to-b from-green-800 to-green-900 overflow-hidden flex flex-col"
     >
-      {/* Top bar - stock and completed piles */}
-      <div className="flex justify-between items-start px-2 pt-2 pb-1 flex-shrink-0">
+      {/* Top bar - stock and completed piles (smaller to maximize tableau space) */}
+      <div className="flex justify-between items-start px-2 pt-1 pb-1 flex-shrink-0">
         <StockPile
           remainingDeals={gameState.stock.length}
           onClick={handleDeal}
           disabled={!canDealCards}
-          cardWidth={cardWidth}
-          cardHeight={cardHeight}
+          cardWidth={Math.round(cardWidth * 0.6)}
+          cardHeight={Math.round(cardHeight * 0.6)}
         />
         <CompletedPile
           count={gameState.completed.length}
           suit={gameState.completed[0]?.[0]?.suit}
-          cardWidth={cardWidth}
-          cardHeight={cardHeight}
+          cardWidth={Math.round(cardWidth * 0.6)}
+          cardHeight={Math.round(cardHeight * 0.6)}
         />
       </div>
 
