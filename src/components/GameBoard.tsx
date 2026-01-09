@@ -1,10 +1,35 @@
 'use client';
 
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Card, EmptySlot, StockPile, CompletedPile } from './Card';
 import { useGame } from '@/contexts/GameContext';
 import { getValidSequence, canMoveToColumn } from '@/lib/gameEngine';
 import { Card as CardType } from '@/lib/types';
+
+// Hook to calculate responsive card dimensions
+function useCardDimensions() {
+  const [windowWidth, setWindowWidth] = useState(
+    typeof window !== 'undefined' ? window.innerWidth : 375
+  );
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  return useMemo(() => {
+    // Match CSS formula: min(52px, (100vw - 26px) / 10)
+    const cardWidth = Math.min(52, (windowWidth - 26) / 10);
+    const cardHeight = cardWidth * 1.38;
+    const columnWidth = cardWidth + 4;
+    // Responsive stack offsets
+    const stackOffsetFacedown = Math.max(4, cardWidth * 0.15);
+    const stackOffsetFaceup = Math.max(14, cardWidth * 0.42);
+
+    return { cardWidth, cardHeight, columnWidth, stackOffsetFacedown, stackOffsetFaceup };
+  }, [windowWidth]);
+}
 
 interface DragState {
   fromCol: number;
@@ -27,6 +52,7 @@ export function GameBoard() {
   const [dragState, setDragState] = useState<DragState | null>(null);
   const boardRef = useRef<HTMLDivElement>(null);
   const columnRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const { cardWidth, cardHeight, columnWidth, stackOffsetFacedown, stackOffsetFaceup } = useCardDimensions();
 
   // Calculate column positions for drop detection
   const getColumnAtPosition = useCallback((x: number, y: number): number | null => {
@@ -197,24 +223,16 @@ export function GameBoard() {
 
   const canDealCards = gameState.stock.length > 0 && !gameState.tableau.some(col => col.length === 0);
 
-  // Card overlap for stacking
-  const getStackOffset = (index: number, total: number, faceUp: boolean): number => {
-    // Face down cards stack tighter
-    if (!faceUp) return index * 8;
-    // Face up cards show more
-    return index * 24;
-  };
-
-  // Calculate total column height
-  const getColumnHeight = (column: CardType[]): number => {
-    let height = 72; // Base card height
+  // Calculate total column height using responsive offsets
+  const getColumnHeight = useCallback((column: CardType[]): number => {
+    let height = cardHeight;
     column.forEach((card, i) => {
       if (i > 0) {
-        height += card.faceUp ? 24 : 8;
+        height += card.faceUp ? stackOffsetFaceup : stackOffsetFacedown;
       }
     });
     return height;
-  };
+  }, [cardHeight, stackOffsetFaceup, stackOffsetFacedown]);
 
   return (
     <div
@@ -235,7 +253,7 @@ export function GameBoard() {
       </div>
 
       {/* Tableau - 10 columns */}
-      <div className="flex justify-center gap-1 px-1 pt-10 pb-4 overflow-x-auto">
+      <div className="flex justify-center px-1 pt-8 pb-4" style={{ gap: 'var(--card-gap)' }}>
         {gameState.tableau.map((column, colIndex) => {
           const isDropTarget =
             (dragState && dragState.fromCol !== colIndex) ||
@@ -248,12 +266,12 @@ export function GameBoard() {
               ref={el => { columnRefs.current[colIndex] = el; }}
               className={`
                 relative flex-shrink-0
-                min-h-[200px]
                 ${isValidTarget ? 'bg-green-600/30 rounded-lg' : ''}
               `}
               style={{
-                width: 56,
-                height: Math.max(200, getColumnHeight(column) + 20),
+                width: columnWidth,
+                minHeight: cardHeight + 50,
+                height: Math.max(cardHeight + 50, getColumnHeight(column) + 20),
               }}
               onClick={() => column.length === 0 && handleEmptyColumnTap(colIndex)}
             >
@@ -274,7 +292,7 @@ export function GameBoard() {
 
                   let stackOffset = 0;
                   for (let i = 0; i < cardIndex; i++) {
-                    stackOffset += column[i].faceUp ? 24 : 8;
+                    stackOffset += column[i].faceUp ? stackOffsetFaceup : stackOffsetFacedown;
                   }
 
                   return (
@@ -310,15 +328,15 @@ export function GameBoard() {
         <div
           className="fixed pointer-events-none z-50"
           style={{
-            left: dragState.currentX - 26,
-            top: dragState.currentY - 36,
+            left: dragState.currentX - cardWidth / 2,
+            top: dragState.currentY - cardHeight / 2,
           }}
         >
           {dragState.cards.map((card, i) => (
             <Card
               key={card.id}
               card={card}
-              stackOffset={i * 24}
+              stackOffset={i * stackOffsetFaceup}
               isDragging
             />
           ))}

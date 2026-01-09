@@ -47,21 +47,16 @@ export function Card({
     // Face down card
     return (
       <div
-        className={`
-          absolute w-[52px] h-[72px] rounded-lg
-          bg-gradient-to-br from-blue-600 to-blue-800
-          border-2 border-blue-400
-          shadow-md
-          flex items-center justify-center
-          select-none
-        `}
+        className="absolute rounded-lg bg-gradient-to-br from-blue-600 to-blue-800 border-2 border-blue-400 shadow-md flex items-center justify-center select-none"
         style={{
+          width: 'var(--card-width)',
+          height: 'var(--card-height)',
           top: stackOffset,
           ...style,
         }}
       >
-        <div className="w-10 h-14 rounded border border-blue-400 bg-blue-700 flex items-center justify-center">
-          <span className="text-blue-300 text-2xl">🕷️</span>
+        <div className="w-[75%] h-[75%] rounded border border-blue-400 bg-blue-700 flex items-center justify-center">
+          <span className="text-blue-300 text-base sm:text-2xl">🕷️</span>
         </div>
       </div>
     );
@@ -70,7 +65,7 @@ export function Card({
   return (
     <div
       className={`
-        absolute w-[52px] h-[72px] rounded-lg
+        absolute rounded-lg
         bg-white border-2
         ${isSelected ? 'border-yellow-400 ring-2 ring-yellow-400 z-10' : 'border-gray-300'}
         ${isHinted ? 'border-green-400 ring-2 ring-green-400 animate-pulse' : ''}
@@ -80,6 +75,8 @@ export function Card({
         select-none touch-none
       `}
       style={{
+        width: 'var(--card-width)',
+        height: 'var(--card-height)',
         top: stackOffset,
         ...style,
       }}
@@ -88,20 +85,20 @@ export function Card({
       onTouchStart={onTouchStart}
     >
       {/* Top left */}
-      <div className={`absolute top-1 left-1 ${colorClass} text-xs font-bold leading-none`}>
+      <div className={`absolute top-0.5 left-0.5 ${colorClass} text-[0.5rem] sm:text-xs font-bold leading-none`}>
         <div>{card.rank}</div>
-        <div className="text-sm">{symbol}</div>
+        <div className="text-[0.6rem] sm:text-sm">{symbol}</div>
       </div>
 
       {/* Center */}
-      <div className={`absolute inset-0 flex items-center justify-center ${colorClass} text-2xl`}>
+      <div className={`absolute inset-0 flex items-center justify-center ${colorClass} text-base sm:text-2xl`}>
         {symbol}
       </div>
 
       {/* Bottom right (inverted) */}
-      <div className={`absolute bottom-1 right-1 ${colorClass} text-xs font-bold leading-none rotate-180`}>
+      <div className={`absolute bottom-0.5 right-0.5 ${colorClass} text-[0.5rem] sm:text-xs font-bold leading-none rotate-180`}>
         <div>{card.rank}</div>
-        <div className="text-sm">{symbol}</div>
+        <div className="text-[0.6rem] sm:text-sm">{symbol}</div>
       </div>
     </div>
   );
@@ -112,11 +109,15 @@ export function EmptySlot({ onClick }: { onClick?: () => void }) {
   return (
     <div
       className={`
-        w-[52px] h-[72px] rounded-lg
+        rounded-lg
         border-2 border-dashed border-gray-400
         bg-gray-800/30
         ${onClick ? 'cursor-pointer hover:bg-gray-700/30' : ''}
       `}
+      style={{
+        width: 'var(--card-width)',
+        height: 'var(--card-height)',
+      }}
       onClick={onClick}
     />
   );
@@ -135,7 +136,7 @@ export function StockPile({
   const piles = Math.ceil(remainingDeals / 10);
 
   return (
-    <div className="relative w-[52px] h-[72px]">
+    <div className="relative" style={{ width: 'var(--card-width)', height: 'var(--card-height)' }}>
       {piles > 0 ? (
         <>
           {/* Stack effect */}
@@ -143,12 +144,14 @@ export function StockPile({
             <div
               key={i}
               className={`
-                absolute w-[52px] h-[72px] rounded-lg
+                absolute rounded-lg
                 bg-gradient-to-br from-blue-600 to-blue-800
                 border-2 border-blue-400
                 ${disabled ? 'opacity-50' : 'cursor-pointer active:scale-95'}
               `}
               style={{
+                width: 'var(--card-width)',
+                height: 'var(--card-height)',
                 top: -i * 2,
                 left: i * 1,
                 zIndex: 5 - i,
@@ -157,7 +160,7 @@ export function StockPile({
             />
           ))}
           {/* Card count */}
-          <div className="absolute -bottom-6 left-0 right-0 text-center text-xs text-gray-300">
+          <div className="absolute -bottom-5 left-0 right-0 text-center text-[0.6rem] sm:text-xs text-gray-300">
             {remainingDeals} left
           </div>
         </>
@@ -171,30 +174,27 @@ export function StockPile({
 // Completed sequence pile
 export function CompletedPile({ count, suit }: { count: number; suit?: Suit }) {
   return (
-    <div className="relative w-[52px] h-[72px]">
+    <div className="relative" style={{ width: 'var(--card-width)', height: 'var(--card-height)' }}>
       {count > 0 ? (
         <>
           {Array.from({ length: Math.min(count, 8) }).map((_, i) => (
             <div
               key={i}
-              className={`
-                absolute w-[52px] h-[72px] rounded-lg
-                bg-gradient-to-br from-green-500 to-green-700
-                border-2 border-green-400
-                flex items-center justify-center
-              `}
+              className="absolute rounded-lg bg-gradient-to-br from-green-500 to-green-700 border-2 border-green-400 flex items-center justify-center"
               style={{
+                width: 'var(--card-width)',
+                height: 'var(--card-height)',
                 top: -i * 2,
                 left: i * 1,
                 zIndex: 8 - i,
               }}
             >
-              <span className="text-white text-2xl">
+              <span className="text-white text-base sm:text-2xl">
                 {suit ? suitSymbols[suit] : '✓'}
               </span>
             </div>
           ))}
-          <div className="absolute -bottom-6 left-0 right-0 text-center text-xs text-gray-300">
+          <div className="absolute -bottom-5 left-0 right-0 text-center text-[0.6rem] sm:text-xs text-gray-300">
             {count}/8
           </div>
         </>
