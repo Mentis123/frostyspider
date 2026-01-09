@@ -19,13 +19,13 @@ function useCardDimensions() {
   }, []);
 
   return useMemo(() => {
-    // Match CSS formula: min(80px, (100vw - 40px) / 4)
-    const cardWidth = Math.min(80, (windowWidth - 40) / 4);
+    // Match CSS formula: min(72px, (100vw - 24px) / 4)
+    const cardWidth = Math.min(72, (windowWidth - 24) / 4);
     const cardHeight = cardWidth * 1.38;
-    const columnWidth = cardWidth + 8;
-    // Tighter stack offsets for multi-row layout
-    const stackOffsetFacedown = Math.max(3, cardWidth * 0.08);
-    const stackOffsetFaceup = Math.max(10, cardWidth * 0.18);
+    const columnWidth = cardWidth + 4;
+    // Very tight stack offsets for compact mobile layout
+    const stackOffsetFacedown = Math.max(2, cardWidth * 0.05);
+    const stackOffsetFaceup = Math.max(8, cardWidth * 0.14);
 
     return { cardWidth, cardHeight, columnWidth, stackOffsetFacedown, stackOffsetFaceup };
   }, [windowWidth]);
@@ -246,8 +246,8 @@ export function GameBoard() {
       ref={boardRef}
       className="relative w-full h-full bg-gradient-to-b from-green-800 to-green-900 overflow-hidden"
     >
-      {/* Top bar - stock and completed piles */}
-      <div className="flex justify-between items-start p-2 pb-0">
+      {/* Compact top bar - stock and completed piles */}
+      <div className="flex justify-between items-start px-1 pt-1">
         <StockPile
           remainingDeals={gameState.stock.length}
           onClick={deal}
@@ -259,8 +259,8 @@ export function GameBoard() {
         />
       </div>
 
-      {/* Tableau - 3-3-4 row layout */}
-      <div className="flex flex-col items-center px-2 pt-2 pb-2 gap-1 overflow-y-auto h-full no-scrollbar">
+      {/* Tableau - 3-3-4 row layout with minimal gaps */}
+      <div className="flex flex-col items-center px-1 pt-1 pb-1 gap-0.5 overflow-y-auto h-full no-scrollbar">
         {ROW_CONFIG.map((rowCols, rowIndex) => (
           <div
             key={rowIndex}
@@ -284,8 +284,8 @@ export function GameBoard() {
                   `}
                   style={{
                     width: columnWidth,
-                    minHeight: cardHeight + 30,
-                    height: Math.max(cardHeight + 30, getColumnHeight(column) + 10),
+                    minHeight: cardHeight + 10,
+                    height: Math.max(cardHeight + 10, getColumnHeight(column) + 4),
                   }}
                   onClick={() => column.length === 0 && handleEmptyColumnTap(colIndex)}
                 >

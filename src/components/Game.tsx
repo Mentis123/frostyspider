@@ -35,20 +35,12 @@ export function Game() {
 
   return (
     <div className="flex flex-col h-[100dvh] bg-gray-900">
-      {/* Header */}
-      <header className="bg-gray-800 px-4 py-2 flex items-center justify-center border-b border-gray-700">
-        <h1 className="text-lg font-bold text-white flex items-center gap-2">
-          <span className="text-2xl">🕷️</span>
-          Frosty Spider
-        </h1>
-      </header>
-
-      {/* Game area */}
+      {/* Game area - maximized */}
       <main className="flex-1 overflow-hidden">
         <GameBoard />
       </main>
 
-      {/* Control bar */}
+      {/* Compact control bar */}
       <ControlBar
         onSettingsClick={() => setShowSettings(true)}
         onNewGameClick={handleNewGameClick}
