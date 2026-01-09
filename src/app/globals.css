@@ -3,6 +3,18 @@
 :root {
   --background: #111827;
   --foreground: #f9fafb;
+
+  /* Responsive card sizing - fits 10 columns with gaps */
+  /* Formula: (viewport - padding - gaps) / 10 columns */
+  /* Padding: 8px total, Gaps: 2px * 9 = 18px */
+  --card-width: min(52px, calc((100vw - 26px) / 10));
+  --card-height: calc(var(--card-width) * 1.38);
+  --card-gap: 2px;
+  --column-width: calc(var(--card-width) + 4px);
+
+  /* Responsive card overlap */
+  --stack-offset-facedown: max(4px, calc(var(--card-width) * 0.15));
+  --stack-offset-faceup: max(14px, calc(var(--card-width) * 0.42));
 }
 
 @theme inline {
