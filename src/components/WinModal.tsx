@@ -36,7 +36,7 @@ export function WinModal({ isOpen, onClose }: WinModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-2 sm:p-4">
       {/* Confetti animation */}
       {showConfetti && (
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -66,53 +66,52 @@ export function WinModal({ isOpen, onClose }: WinModalProps) {
         </div>
       )}
 
-      <div className="bg-gradient-to-b from-gray-800 to-gray-900 rounded-xl w-full max-w-sm shadow-2xl text-center overflow-hidden">
+      <div className="bg-gradient-to-b from-gray-800 to-gray-900 rounded-xl w-full max-w-sm shadow-2xl text-center overflow-hidden max-h-full overflow-y-auto">
         {/* Trophy banner */}
-        <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 py-6">
-          <div className="text-6xl mb-2">🏆</div>
-          <h2 className="text-3xl font-bold text-yellow-900">You Win!</h2>
+        <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 py-3 sm:py-6">
+          <div className="text-4xl sm:text-6xl mb-1 sm:mb-2">🏆</div>
+          <h2 className="text-2xl sm:text-3xl font-bold text-yellow-900">You Win!</h2>
         </div>
 
         {/* Stats */}
-        <div className="p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-gray-700/50 rounded-lg p-3">
-              <div className="text-gray-400 text-sm">Moves</div>
-              <div className="text-2xl font-bold text-white">{gameState.moves}</div>
+        <div className="p-3 sm:p-6 space-y-2 sm:space-y-4">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4">
+            <div className="bg-gray-700/50 rounded-lg p-2 sm:p-3">
+              <div className="text-gray-400 text-xs sm:text-sm">Moves</div>
+              <div className="text-lg sm:text-2xl font-bold text-white">{gameState.moves}</div>
             </div>
-            <div className="bg-gray-700/50 rounded-lg p-3">
-              <div className="text-gray-400 text-sm">Time</div>
-              <div className="text-2xl font-bold text-white">
+            <div className="bg-gray-700/50 rounded-lg p-2 sm:p-3">
+              <div className="text-gray-400 text-xs sm:text-sm">Time</div>
+              <div className="text-lg sm:text-2xl font-bold text-white">
                 {formatTime(gameState.startTime)}
+              </div>
+            </div>
+            <div className="bg-gray-700/50 rounded-lg p-2 sm:p-3">
+              <div className="text-gray-400 text-xs sm:text-sm">Difficulty</div>
+              <div className="text-lg sm:text-2xl font-bold text-white">
+                {gameState.settings.suitCount === 1 && 'Easy'}
+                {gameState.settings.suitCount === 2 && 'Medium'}
+                {gameState.settings.suitCount === 4 && 'Hard'}
               </div>
             </div>
           </div>
 
-          <div className="bg-gray-700/50 rounded-lg p-3">
-            <div className="text-gray-400 text-sm">Difficulty</div>
-            <div className="text-xl font-bold text-white">
-              {gameState.settings.suitCount === 1 && '1 Suit (Easy)'}
-              {gameState.settings.suitCount === 2 && '2 Suits (Medium)'}
-              {gameState.settings.suitCount === 4 && '4 Suits (Hard)'}
-            </div>
-          </div>
-
-          <p className="text-gray-400 text-sm">
+          <p className="text-gray-400 text-xs sm:text-sm">
             Congratulations, Frosty! You've conquered the spider! 🕷️
           </p>
         </div>
 
         {/* Actions */}
-        <div className="p-4 border-t border-gray-700 space-y-2">
+        <div className="p-3 sm:p-4 border-t border-gray-700 flex gap-2 sm:block sm:space-y-2">
           <button
             onClick={handleNewGame}
-            className="w-full py-3 px-4 bg-green-600 hover:bg-green-500 text-white font-medium rounded-lg transition-colors text-lg"
+            className="flex-1 sm:w-full py-2 sm:py-3 px-3 sm:px-4 bg-green-600 hover:bg-green-500 text-white font-medium rounded-lg transition-colors text-base sm:text-lg"
           >
             Play Again
           </button>
           <button
             onClick={onClose}
-            className="w-full py-2 px-4 text-gray-400 hover:text-white transition-colors"
+            className="flex-1 sm:w-full py-2 px-3 sm:px-4 text-gray-400 hover:text-white transition-colors border border-gray-600 sm:border-0 rounded-lg sm:rounded-none"
           >
             View Board
           </button>
