@@ -488,7 +488,7 @@ export function GameBoard() {
                             return (
                               <div
                                 key={`run-${segment.startIndex}`}
-                                style={{ opacity: isDragged ? 0.3 : 1 }}
+                                style={{ opacity: isDragged ? 0.3 : 1, zIndex: segmentIndex + 1 }}
                               >
                                 <CompressedRun
                                   cards={segment.cards}
@@ -536,7 +536,7 @@ export function GameBoard() {
                             return (
                               <div
                                 key={card.id}
-                                style={{ opacity: isDragged ? 0.3 : 1 }}
+                                style={{ opacity: isDragged ? 0.3 : 1, zIndex: segmentIndex + 1 }}
                               >
                                 <Card
                                   card={card}
