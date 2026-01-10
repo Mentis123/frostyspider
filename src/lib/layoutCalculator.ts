@@ -507,10 +507,49 @@ export function calculateSegmentLayout(
   }
 
   // If ideal fits, use it. Otherwise scale down.
-  const scale = idealTotalHeight <= maxStackHeight ? 1 : maxStackHeight / idealTotalHeight;
+  // IMPORTANT: The last card's full height (cardHeight) cannot be scaled - it must be fully visible.
+  // So we calculate the scale based only on the compressible portion.
+  const lastSegment = segments[segments.length - 1];
+  const isLastSegmentAtEnd = lastSegment && lastSegment.endIndex === column.length - 1;
+  const fixedHeight = isLastSegmentAtEnd ? cardHeight : 0;
 
-  const faceDownOffset = Math.max(MIN_FACEDOWN_PEEK, IDEAL_FACEDOWN_PEEK * scale);
-  const faceUpOffset = Math.max(MIN_FACEUP_PEEK, IDEAL_FACEUP_PEEK * scale);
+  const idealCompressible = idealTotalHeight - fixedHeight;
+  const availableForCompressible = maxStackHeight - fixedHeight;
+
+  let scale = 1;
+  if (idealCompressible > availableForCompressible && idealCompressible > 0) {
+    scale = Math.max(0, availableForCompressible / idealCompressible);
+  }
+
+  // Calculate minimum possible height with MIN offsets
+  let minPossibleHeight = fixedHeight;
+  for (const segment of segments) {
+    if (segment.type === 'facedown') {
+      minPossibleHeight += segment.cards.length * MIN_FACEDOWN_PEEK;
+    } else if (segment.type === 'run') {
+      const isLastInColumn = segment.endIndex === column.length - 1;
+      // Run min height: scaled peek values + full card if last
+      const topCardPeek = Math.max(16, effectiveCardWidth * 0.28) * scale;
+      const hasMiddle = segment.cards.length > 2;
+      const middleHeight = hasMiddle ? Math.max(10, effectiveCardWidth * 0.15) * scale : 0;
+      if (!isLastInColumn) {
+        minPossibleHeight += topCardPeek + middleHeight + topCardPeek;
+      }
+    } else if (segment.endIndex !== column.length - 1) {
+      minPossibleHeight += MIN_FACEUP_PEEK;
+    }
+  }
+
+  // If even minimums exceed available space, scale down further
+  let faceDownOffset = Math.max(MIN_FACEDOWN_PEEK, IDEAL_FACEDOWN_PEEK * scale);
+  let faceUpOffset = Math.max(MIN_FACEUP_PEEK, IDEAL_FACEUP_PEEK * scale);
+
+  if (minPossibleHeight > maxStackHeight && minPossibleHeight > fixedHeight) {
+    const emergencyScale = (maxStackHeight - fixedHeight) / (minPossibleHeight - fixedHeight);
+    faceDownOffset = Math.max(2, MIN_FACEDOWN_PEEK * emergencyScale);
+    faceUpOffset = Math.max(3, MIN_FACEUP_PEEK * emergencyScale);
+    scale = scale * emergencyScale;
+  }
 
   // Now calculate actual offsets
   const segmentOffsets: number[] = [];
@@ -542,10 +581,13 @@ export function calculateSegmentLayout(
     }
   }
 
+  // Final safety cap: ensure totalHeight never exceeds maxStackHeight
+  const totalHeight = Math.min(currentOffset, maxStackHeight);
+
   return {
     segments,
     segmentOffsets,
-    totalHeight: currentOffset,
+    totalHeight,
     faceDownOffset,
     faceUpOffset,
   };
