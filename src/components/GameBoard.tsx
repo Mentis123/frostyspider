@@ -484,7 +484,7 @@ export function GameBoard() {
                                   onCardClick={(cardIndex) => handleCardTap(colIndex, cardIndex)}
                                   onMouseDown={(e, cardIndex) => handleMouseDown(e, colIndex, cardIndex)}
                                   onTouchStart={(e, cardIndex) => handleTouchStart(e, colIndex, cardIndex)}
-                                  onExpandClick={() => handleColumnTap(colIndex)}
+                                  faceUpPeek={columnLayout.segmentLayout.faceUpOffset}
                                 />
                               </div>
                             );
@@ -585,42 +585,7 @@ export function GameBoard() {
                           );
                         })
                       )}
-                      {/* Tap zone overlay for compressed stacks without runs - covers top portion */}
-                      {columnLayout.isCompressed && !isExpanded && !columnLayout.useSegmentRendering && column.length > 1 && (
-                        <div
-                          className="absolute top-0 left-0 right-0 cursor-pointer z-10"
-                          style={{ height: Math.min(columnLayout.stackHeight * 0.4, 60) }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleColumnTap(colIndex);
-                          }}
-                        >
-                          <div className="absolute inset-0 bg-gradient-to-b from-black/30 to-transparent rounded-t-lg pointer-events-none" />
-                        </div>
-                      )}
-                    </div>
-                    {/* Expand/Collapse indicator button - positioned above the card stack */}
-                    {(columnLayout.isCompressed || isExpanded) && column.length > 1 && (
-                      <div
-                        className="absolute left-0 right-0 flex justify-center cursor-pointer z-20"
-                        style={{
-                          bottom: columnLayout.stackHeight + 8,
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleColumnTap(colIndex);
-                        }}
-                      >
-                        <span className={`
-                          text-[10px] px-2 py-1 rounded-full font-medium shadow-lg
-                          ${isExpanded
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-amber-500 text-white animate-pulse'}
-                        `}>
-                          {isExpanded ? '▼ tap to close' : `▲ ${column.length} cards`}
-                        </span>
                       </div>
-                    )}
                     </>
                   )}
                 </div>

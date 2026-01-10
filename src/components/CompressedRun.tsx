@@ -1,16 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Card as CardType, Suit } from '@/lib/types';
-import { getRunIndicatorHeight } from '@/lib/layoutCalculator';
+import { Card as CardType } from '@/lib/types';
 import { Card } from './Card';
-
-const suitSymbols: Record<Suit, string> = {
-  spades: '\u2660',
-  hearts: '\u2665',
-  diamonds: '\u2666',
-  clubs: '\u2663',
-};
 
 interface CompressedRunProps {
   cards: CardType[];
@@ -24,18 +16,19 @@ interface CompressedRunProps {
   onCardClick?: (cardIndex: number) => void;
   onMouseDown?: (e: React.MouseEvent, cardIndex: number) => void;
   onTouchStart?: (e: React.TouchEvent, cardIndex: number) => void;
-  onExpandClick?: () => void;
+  faceUpPeek?: number; // Peek height for face-up cards
 }
 
 /**
- * CompressedRun renders a sequence of 3+ cards in a compressed format:
- * - Shows the TOP card's rank prominently (the one you'd grab to move onto a higher card)
- * - Shows a run indicator with the range (e.g., "8 > 5" meaning 8 down to 5)
- * - When it's the last segment, shows the bottom card (lowest rank) fully visible
+ * CompressedRun renders a sequence of 3+ cards showing:
+ * - First card (top of run, what you grab)
+ * - A single stacked card representing all middle cards
+ * - Last card (bottom of run, fully visible when at column end)
  *
- * For a run 8-7-6-5:
- * - cards[0] = 8 (top, highest rank, what you grab)
- * - cards[3] = 5 (bottom, lowest rank, normally visible at column bottom)
+ * For a run 9-8-7-6-5:
+ * - cards[0] = 9 (top, shown with peek)
+ * - cards[1-3] = 8,7,6 (middle, shown as single stacked card)
+ * - cards[4] = 5 (bottom, shown fully if last in column)
  */
 export function CompressedRun({
   cards,
@@ -49,22 +42,68 @@ export function CompressedRun({
   onCardClick,
   onMouseDown,
   onTouchStart,
-  onExpandClick,
+  faceUpPeek = 22,
 }: CompressedRunProps) {
   if (cards.length === 0) return null;
 
-  const topCard = cards[0]; // Top of run (highest rank, what you'd grab to move)
-  const bottomCard = cards[cards.length - 1]; // Bottom of run (lowest rank)
-  const runLength = cards.length;
+  const topCard = cards[0]; // First card (highest rank, what you'd grab to move)
+  const bottomCard = cards[cards.length - 1]; // Last card (lowest rank)
 
-  // Run indicator dimensions - use consistent calculation with layout
-  const indicatorHeight = getRunIndicatorHeight(cardWidth);
-  const indicatorFontSize = Math.max(10, cardWidth * 0.17);
+  // Middle cards are everything between first and last
+  const hasMiddleCards = cards.length > 2;
+  const middleCardCount = cards.length - 2; // Number of cards in the middle
 
-  // Calculate total height for this component
-  // If last in column: indicator + full card
-  // If mid-column: just indicator height (next segment continues below)
-  const totalHeight = isLastInColumn ? indicatorHeight + cardHeight : indicatorHeight;
+  // Calculate peek height for the top card (responsive to card size)
+  const topCardPeek = Math.max(16, cardWidth * 0.28); // Header height of card
+
+  // Height for the stacked middle representation (slim, just shows there's a group)
+  const middleStackHeight = hasMiddleCards ? Math.max(10, cardWidth * 0.15) : 0;
+
+  // For runs of exactly 2 cards, just show both cards normally
+  if (cards.length === 2) {
+    const totalHeight = isLastInColumn ? topCardPeek + cardHeight : topCardPeek + faceUpPeek;
+
+    return (
+      <div
+        className="absolute"
+        style={{
+          top: stackOffset,
+          width: cardWidth,
+          height: totalHeight,
+        }}
+      >
+        {/* First card */}
+        <Card
+          card={topCard}
+          stackOffset={0}
+          isSelected={isSelected}
+          isImmersive={isImmersive}
+          cardWidth={cardWidth}
+          cardHeight={cardHeight}
+          onClick={() => onCardClick?.(startIndex)}
+          onMouseDown={(e) => onMouseDown?.(e, startIndex)}
+          onTouchStart={(e) => onTouchStart?.(e, startIndex)}
+        />
+        {/* Second/bottom card */}
+        <Card
+          card={bottomCard}
+          stackOffset={topCardPeek}
+          isSelected={isSelected}
+          isImmersive={isImmersive}
+          cardWidth={cardWidth}
+          cardHeight={cardHeight}
+          onClick={() => onCardClick?.(startIndex)}
+          onMouseDown={(e) => onMouseDown?.(e, startIndex)}
+          onTouchStart={(e) => onTouchStart?.(e, startIndex)}
+        />
+      </div>
+    );
+  }
+
+  // Calculate total height for runs of 3+ cards
+  // Top card peek + middle stack + bottom card (full if last, peek if not)
+  const bottomCardHeight = isLastInColumn ? cardHeight : faceUpPeek;
+  const totalHeight = topCardPeek + middleStackHeight + bottomCardHeight;
 
   return (
     <div
@@ -75,93 +114,75 @@ export function CompressedRun({
         height: totalHeight,
       }}
     >
-      {/* Run indicator bar - shows the range of the compressed run */}
-      <div
-        className={`
-          absolute left-0 right-0 flex items-center justify-center gap-0.5
-          cursor-pointer select-none
-          ${isSelected ? 'ring-2 ring-yellow-400' : ''}
-        `}
-        style={{
-          top: 0,
-          height: indicatorHeight,
-          background: isSelected
-            ? 'linear-gradient(to bottom, rgba(234, 179, 8, 0.95), rgba(202, 138, 4, 0.95))'
-            : 'linear-gradient(to bottom, rgba(59, 130, 246, 0.95), rgba(37, 99, 235, 0.95))',
-          borderRadius: 6,
-          boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
-        }}
-        onClick={(e) => {
-          e.stopPropagation();
-          // Clicking the run indicator selects from the TOP card (startIndex)
-          onCardClick?.(startIndex);
-        }}
-        onMouseDown={(e) => {
-          e.stopPropagation();
-          onMouseDown?.(e, startIndex);
-        }}
-        onTouchStart={(e) => {
-          e.stopPropagation();
-          onTouchStart?.(e, startIndex);
-        }}
-      >
-        {/* Top card rank (prominent - this is what you need to know!) */}
-        <span
-          className="font-black leading-none text-white"
-          style={{ fontSize: indicatorFontSize * 1.1 }}
-        >
-          {topCard.rank}
-        </span>
-        <span
-          className="text-white/80 leading-none"
-          style={{ fontSize: indicatorFontSize * 0.85 }}
-        >
-          {suitSymbols[topCard.suit]}
-        </span>
+      {/* First/top card - shows with peek */}
+      <Card
+        card={topCard}
+        stackOffset={0}
+        isSelected={isSelected}
+        isImmersive={isImmersive}
+        cardWidth={cardWidth}
+        cardHeight={cardHeight}
+        onClick={() => onCardClick?.(startIndex)}
+        onMouseDown={(e) => onMouseDown?.(e, startIndex)}
+        onTouchStart={(e) => onTouchStart?.(e, startIndex)}
+      />
 
-        {/* Arrow and count */}
-        <span
-          className="text-white/80 leading-none mx-0.5 font-medium"
-          style={{ fontSize: indicatorFontSize * 0.75 }}
+      {/* Middle cards - represented as a single stacked element */}
+      {hasMiddleCards && (
+        <div
+          className={`
+            absolute left-0 right-0
+            cursor-pointer select-none
+            ${isSelected ? 'ring-1 ring-yellow-400' : ''}
+          `}
+          style={{
+            top: topCardPeek,
+            height: middleStackHeight,
+            width: cardWidth,
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onCardClick?.(startIndex);
+          }}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            onMouseDown?.(e, startIndex);
+          }}
+          onTouchStart={(e) => {
+            e.stopPropagation();
+            onTouchStart?.(e, startIndex);
+          }}
         >
-          {'\u25BC'}{runLength}
-        </span>
-
-        {/* Bottom card rank */}
-        <span
-          className="font-bold leading-none text-white/90"
-          style={{ fontSize: indicatorFontSize }}
-        >
-          {bottomCard.rank}
-        </span>
-        <span
-          className="text-white/60 leading-none"
-          style={{ fontSize: indicatorFontSize * 0.75 }}
-        >
-          {suitSymbols[bottomCard.suit]}
-        </span>
-      </div>
-
-      {/* If this is the last segment in column, show the bottom card fully */}
-      {isLastInColumn && (
-        <div style={{ position: 'absolute', top: indicatorHeight }}>
-          <Card
-            card={bottomCard}
-            stackOffset={0}
-            isSelected={isSelected}
-            isImmersive={isImmersive}
-            cardWidth={cardWidth}
-            cardHeight={cardHeight}
-            onClick={() => {
-              // Clicking the bottom card also selects from the top of the run
-              // since that's how Spider works - you drag the whole valid sequence
-              onCardClick?.(startIndex);
-            }}
-            onMouseDown={(e) => onMouseDown?.(e, startIndex)}
-            onTouchStart={(e) => onTouchStart?.(e, startIndex)}
-          />
+          {/* Stacked cards visual - multiple offset layers to show depth */}
+          {Array.from({ length: Math.min(middleCardCount, 3) }).map((_, i) => (
+            <div
+              key={i}
+              className="absolute bg-white border-l-2 border-r-2 border-gray-300"
+              style={{
+                left: 0,
+                right: 0,
+                top: i * 2,
+                height: middleStackHeight - (i * 2),
+                zIndex: 3 - i,
+                borderColor: isSelected ? 'rgb(250, 204, 21)' : 'rgb(209, 213, 219)',
+              }}
+            />
+          ))}
         </div>
       )}
+
+      {/* Bottom card - shown fully if last in column, or with peek */}
+      <Card
+        card={bottomCard}
+        stackOffset={topCardPeek + middleStackHeight}
+        isSelected={isSelected}
+        isImmersive={isImmersive}
+        cardWidth={cardWidth}
+        cardHeight={cardHeight}
+        onClick={() => onCardClick?.(startIndex)}
+        onMouseDown={(e) => onMouseDown?.(e, startIndex)}
+        onTouchStart={(e) => onTouchStart?.(e, startIndex)}
+      />
     </div>
   );
 }
