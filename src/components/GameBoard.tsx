@@ -13,6 +13,7 @@ import {
   getCardStackOffset,
   isStackCompressed,
   calculateSegmentLayout,
+  topOffsetToBottomOffset,
   ColumnSegment,
   SegmentLayout,
   LayoutResult,
@@ -463,8 +464,13 @@ export function GameBoard() {
                       {columnLayout.useSegmentRendering ? (
                         // Segment-based rendering with run compression
                         columnLayout.segmentLayout.segments.map((segment, segmentIndex) => {
-                          const segmentOffset = columnLayout.segmentLayout.segmentOffsets[segmentIndex];
+                          const topOffset = columnLayout.segmentLayout.segmentOffsets[segmentIndex];
                           const isLastSegment = segmentIndex === columnLayout.segmentLayout.segments.length - 1;
+
+                          // In landscape, use bottom positioning for bottom-up stacking
+                          const segmentOffset = isLandscape
+                            ? topOffsetToBottomOffset(topOffset, cardHeight, columnLayout.stackHeight)
+                            : topOffset;
 
                           if (segment.type === 'run') {
                             // Check if any card in this run is being dragged
@@ -498,6 +504,7 @@ export function GameBoard() {
                                   onMouseDown={(e, cardIndex) => handleMouseDown(e, colIndex, cardIndex)}
                                   onTouchStart={(e, cardIndex) => handleTouchStart(e, colIndex, cardIndex)}
                                   faceUpPeek={columnLayout.segmentLayout.faceUpOffset}
+                                  useBottomPosition={isLandscape}
                                 />
                               </div>
                             );
@@ -514,12 +521,17 @@ export function GameBoard() {
                               cardIndex >= selection.cardIndex;
 
                             // Calculate offset for this card within the segment
-                            let cardOffset = segmentOffset;
+                            let cardTopOffset = topOffset;
                             for (let i = 0; i < cardInSegmentIndex; i++) {
-                              cardOffset += segment.cards[i].faceUp
+                              cardTopOffset += segment.cards[i].faceUp
                                 ? columnLayout.segmentLayout.faceUpOffset
                                 : columnLayout.segmentLayout.faceDownOffset;
                             }
+
+                            // In landscape, convert to bottom offset
+                            const cardOffset = isLandscape
+                              ? topOffsetToBottomOffset(cardTopOffset, cardHeight, columnLayout.stackHeight)
+                              : cardTopOffset;
 
                             return (
                               <div
@@ -529,6 +541,7 @@ export function GameBoard() {
                                 <Card
                                   card={card}
                                   stackOffset={cardOffset}
+                                  useBottomPosition={isLandscape}
                                   isSelected={!!isSelected}
                                   isImmersive={isImmersive}
                                   cardWidth={cardWidth}
@@ -564,7 +577,12 @@ export function GameBoard() {
                             selection.column === colIndex &&
                             cardIndex >= selection.cardIndex;
 
-                          const stackOffset = getCardStackOffset(column, cardIndex, columnLayout.offsets);
+                          const topOffset = getCardStackOffset(column, cardIndex, columnLayout.offsets);
+
+                          // In landscape, convert to bottom offset for bottom-up stacking
+                          const stackOffset = isLandscape
+                            ? topOffsetToBottomOffset(topOffset, cardHeight, columnLayout.stackHeight)
+                            : topOffset;
 
                           return (
                             <div
@@ -576,6 +594,7 @@ export function GameBoard() {
                               <Card
                                 card={card}
                                 stackOffset={stackOffset}
+                                useBottomPosition={isLandscape}
                                 isSelected={!!isSelected}
                                 isImmersive={isImmersive}
                                 cardWidth={cardWidth}

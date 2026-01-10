@@ -12,6 +12,7 @@ interface CardProps {
   onMouseDown?: (e: React.MouseEvent) => void;
   onTouchStart?: (e: React.TouchEvent) => void;
   stackOffset?: number;
+  useBottomPosition?: boolean; // When true, use bottom instead of top for positioning
   isDragging?: boolean;
   style?: React.CSSProperties;
   cardWidth?: number;
@@ -41,11 +42,16 @@ export function Card({
   onMouseDown,
   onTouchStart,
   stackOffset = 0,
+  useBottomPosition = false,
   isDragging = false,
   style,
   cardWidth = 60,
   cardHeight = 83,
 }: CardProps) {
+  // Positioning style: use bottom for landscape (bottom-up stacking) or top for portrait
+  const positionStyle = useBottomPosition
+    ? { bottom: stackOffset }
+    : { top: stackOffset };
   const symbol = suitSymbols[card.suit];
   const colorClass = suitColors[card.suit];
 
@@ -68,7 +74,7 @@ export function Card({
         style={{
           width: cardWidth,
           height: cardHeight,
-          top: stackOffset,
+          ...positionStyle,
           ...style,
         }}
       >
@@ -106,7 +112,7 @@ export function Card({
       style={{
         width: cardWidth,
         height: cardHeight,
-        top: stackOffset,
+        ...positionStyle,
         ...immersiveShadow,
         ...style,
       }}
