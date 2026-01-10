@@ -370,16 +370,41 @@ export function isStackCompressed(offsets: StackOffsets, cardCount: number): boo
   return faceDownCompressed || faceUpCompressed;
 }
 
-// Height taken by a compressed run indicator bar
-const RUN_INDICATOR_HEIGHT = 16; // Base height of the run indicator bar
+/**
+ * Calculate the height of a compressed run based on card dimensions
+ * New display shows: first card peek + middle stack + bottom card
+ */
+export function getCompressedRunHeight(
+  cardCount: number,
+  cardWidth: number,
+  cardHeight: number,
+  isLastInColumn: boolean,
+  scale: number = 1
+): number {
+  // Top card peek (header height)
+  const topCardPeek = Math.max(16, cardWidth * 0.28) * scale;
+
+  // Middle stack height (only if 3+ cards in run)
+  const hasMiddleCards = cardCount > 2;
+  const middleStackHeight = hasMiddleCards ? Math.max(10, cardWidth * 0.15) * scale : 0;
+
+  // Bottom card - full if last in column, peek if not
+  const bottomCardHeight = isLastInColumn ? cardHeight : Math.max(12, IDEAL_FACEUP_PEEK * scale);
+
+  // For 2-card runs, just show both cards with peek
+  if (cardCount === 2) {
+    return topCardPeek + bottomCardHeight;
+  }
+
+  return topCardPeek + middleStackHeight + bottomCardHeight;
+}
 
 /**
- * Calculate the height of a run indicator based on card width
+ * Legacy function for backwards compatibility - returns top card peek height
  */
 export function getRunIndicatorHeight(cardWidth: number, scale: number = 1): number {
-  // Use responsive sizing based on card width, with a minimum
-  const baseHeight = Math.max(14, cardWidth * 0.22);
-  return Math.max(10, baseHeight * scale);
+  // Returns the height of the top card peek portion
+  return Math.max(16, cardWidth * 0.28) * scale;
 }
 
 export interface SegmentLayout {
@@ -439,9 +464,7 @@ export function calculateSegmentLayout(
     };
   }
 
-  // Calculate ideal heights using responsive indicator height
-  const idealIndicatorHeight = getRunIndicatorHeight(effectiveCardWidth, 1);
-
+  // Calculate ideal heights using new compressed run display
   let idealTotalHeight = 0;
 
   for (const segment of segments) {
@@ -449,14 +472,15 @@ export function calculateSegmentLayout(
       // Face-down cards get minimal peek
       idealTotalHeight += segment.cards.length * IDEAL_FACEDOWN_PEEK;
     } else if (segment.type === 'run') {
-      // Run: compressed into indicator bar + bottom card (if last)
-      if (segment.endIndex === column.length - 1) {
-        // This run ends the column - show indicator + full bottom card
-        idealTotalHeight += idealIndicatorHeight + cardHeight;
-      } else {
-        // Mid-column run - just the indicator bar
-        idealTotalHeight += idealIndicatorHeight;
-      }
+      // Run: first card peek + middle stack + bottom card
+      const isLastInColumn = segment.endIndex === column.length - 1;
+      idealTotalHeight += getCompressedRunHeight(
+        segment.cards.length,
+        effectiveCardWidth,
+        cardHeight,
+        isLastInColumn,
+        1
+      );
     } else {
       // Single card
       if (segment.endIndex === column.length - 1) {
@@ -472,7 +496,6 @@ export function calculateSegmentLayout(
 
   const faceDownOffset = Math.max(MIN_FACEDOWN_PEEK, IDEAL_FACEDOWN_PEEK * scale);
   const faceUpOffset = Math.max(MIN_FACEUP_PEEK, IDEAL_FACEUP_PEEK * scale);
-  const runIndicatorHeight = getRunIndicatorHeight(effectiveCardWidth, scale);
 
   // Now calculate actual offsets
   const segmentOffsets: number[] = [];
@@ -485,13 +508,15 @@ export function calculateSegmentLayout(
     if (segment.type === 'facedown') {
       currentOffset += segment.cards.length * faceDownOffset;
     } else if (segment.type === 'run') {
-      if (segment.endIndex === column.length - 1) {
-        // This is the last segment - indicator + full card
-        currentOffset += runIndicatorHeight + cardHeight;
-      } else {
-        // Mid-column run - just the indicator bar
-        currentOffset += runIndicatorHeight;
-      }
+      // Run: first card peek + middle stack + bottom card
+      const isLastInColumn = segment.endIndex === column.length - 1;
+      currentOffset += getCompressedRunHeight(
+        segment.cards.length,
+        effectiveCardWidth,
+        cardHeight,
+        isLastInColumn,
+        scale
+      );
     } else {
       // Single card
       if (segment.endIndex === column.length - 1) {
@@ -516,13 +541,16 @@ export function calculateSegmentLayout(
  */
 export function getRunSegmentHeight(
   segment: ColumnSegment,
+  cardWidth: number,
   cardHeight: number,
   isLastInColumn: boolean,
   scale: number = 1
 ): number {
-  const runIndicatorHeight = Math.max(10, RUN_INDICATOR_HEIGHT * scale);
-  if (isLastInColumn) {
-    return cardHeight + runIndicatorHeight;
-  }
-  return Math.max(MIN_FACEUP_PEEK, IDEAL_FACEUP_PEEK * scale) + runIndicatorHeight;
+  return getCompressedRunHeight(
+    segment.cards.length,
+    cardWidth,
+    cardHeight,
+    isLastInColumn,
+    scale
+  );
 }
