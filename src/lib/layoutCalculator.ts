@@ -387,7 +387,7 @@ export function isStackCompressed(offsets: StackOffsets, cardCount: number): boo
 
 /**
  * Calculate the height of a compressed run based on card dimensions
- * New display shows: first card peek + middle stack + bottom card
+ * New display shows: compact indicator bar + bottom card (fully visible if last)
  */
 export function getCompressedRunHeight(
   cardCount: number,
@@ -396,22 +396,20 @@ export function getCompressedRunHeight(
   isLastInColumn: boolean,
   scale: number = 1
 ): number {
-  // Top card peek (header height)
-  const topCardPeek = Math.max(16, cardWidth * 0.28) * scale;
-
-  // Middle stack height (only if 3+ cards in run)
-  const hasMiddleCards = cardCount > 2;
-  const middleStackHeight = hasMiddleCards ? Math.max(10, cardWidth * 0.15) * scale : 0;
-
-  // Bottom card - full if last in column, topCardPeek if not (to show rank)
-  const bottomCardHeight = isLastInColumn ? cardHeight : topCardPeek;
-
-  // For 2-card runs, just show both cards with peek
+  // For 2-card runs, show both cards with peek
   if (cardCount === 2) {
+    const topCardPeek = Math.max(16, cardWidth * 0.28) * scale;
+    const bottomCardHeight = isLastInColumn ? cardHeight : (IDEAL_FACEUP_PEEK * scale);
     return topCardPeek + bottomCardHeight;
   }
 
-  return topCardPeek + middleStackHeight + bottomCardHeight;
+  // For 3+ card runs: compact indicator bar + bottom card
+  const indicatorHeight = Math.max(18, cardWidth * 0.22) * scale;
+
+  // Bottom card - full if last in column, just a peek if not
+  const bottomCardHeight = isLastInColumn ? cardHeight : (IDEAL_FACEUP_PEEK * scale);
+
+  return indicatorHeight + bottomCardHeight;
 }
 
 /**
@@ -528,12 +526,10 @@ export function calculateSegmentLayout(
       minPossibleHeight += segment.cards.length * MIN_FACEDOWN_PEEK;
     } else if (segment.type === 'run') {
       const isLastInColumn = segment.endIndex === column.length - 1;
-      // Run min height: scaled peek values + full card if last
-      const topCardPeek = Math.max(16, effectiveCardWidth * 0.28) * scale;
-      const hasMiddle = segment.cards.length > 2;
-      const middleHeight = hasMiddle ? Math.max(10, effectiveCardWidth * 0.15) * scale : 0;
+      // Run min height: indicator bar + peek (or nothing if last, since it's in fixedHeight)
       if (!isLastInColumn) {
-        minPossibleHeight += topCardPeek + middleHeight + topCardPeek;
+        const indicatorHeight = Math.max(18, effectiveCardWidth * 0.22) * scale;
+        minPossibleHeight += indicatorHeight + MIN_FACEUP_PEEK;
       }
     } else if (segment.endIndex !== column.length - 1) {
       minPossibleHeight += MIN_FACEUP_PEEK;
