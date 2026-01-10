@@ -449,7 +449,7 @@ export function GameBoard() {
                   ) : (
                     <>
                     <div
-                      className={`relative mt-auto ${columnLayout.needsScroll ? 'overflow-y-auto no-scrollbar' : ''}`}
+                      className={`relative mt-auto overflow-hidden ${columnLayout.needsScroll ? 'overflow-y-auto no-scrollbar' : ''}`}
                       style={{
                         height: Math.min(columnLayout.stackHeight, columnLayout.maxHeight),
                         width: '100%',
