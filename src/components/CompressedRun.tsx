@@ -18,6 +18,7 @@ interface CompressedRunProps {
   onMouseDown?: (e: React.MouseEvent, cardIndex: number) => void;
   onTouchStart?: (e: React.TouchEvent, cardIndex: number) => void;
   faceUpPeek?: number; // Peek height for face-up cards
+  useBottomPosition?: boolean; // When true, use bottom instead of top for positioning
 }
 
 /**
@@ -45,7 +46,12 @@ export function CompressedRun({
   onMouseDown,
   onTouchStart,
   faceUpPeek = 22,
+  useBottomPosition = false,
 }: CompressedRunProps) {
+  // Positioning style for the container
+  const containerPositionStyle = useBottomPosition
+    ? { bottom: stackOffset }
+    : { top: stackOffset };
   if (cards.length === 0) return null;
 
   const topCard = cards[0]; // First card (highest rank, what you'd grab to move)
@@ -87,7 +93,7 @@ export function CompressedRun({
       <div
         className="absolute"
         style={{
-          top: stackOffset,
+          ...containerPositionStyle,
           width: cardWidth,
           height: totalHeight,
         }}
@@ -129,7 +135,7 @@ export function CompressedRun({
     <div
       className="absolute"
       style={{
-        top: stackOffset,
+        ...containerPositionStyle,
         width: cardWidth,
         height: totalHeight,
       }}

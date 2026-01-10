@@ -354,6 +354,21 @@ export function getCardStackOffset(
 }
 
 /**
+ * Convert a top offset to a bottom offset for bottom-up card positioning
+ * @param topOffset - The original top offset
+ * @param cardHeight - Height of a card
+ * @param totalStackHeight - Total height of the stack
+ * @returns The equivalent bottom offset for bottom-up positioning
+ */
+export function topOffsetToBottomOffset(
+  topOffset: number,
+  cardHeight: number,
+  totalStackHeight: number
+): number {
+  return totalStackHeight - cardHeight - topOffset;
+}
+
+/**
  * Check if a stack is compressed (cards are overlapping more than ideal)
  * Returns true if any cards can't be seen clearly
  */
