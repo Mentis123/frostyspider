@@ -9,6 +9,7 @@ interface CompressedRunProps {
   startIndex: number; // Index in the original column (where the top card is)
   stackOffset: number; // Y position offset
   isSelected?: boolean;
+  selectedCardIndex?: number; // The actual card index that was selected (for partial highlighting)
   isImmersive?: boolean;
   cardWidth: number;
   cardHeight: number;
@@ -35,6 +36,7 @@ export function CompressedRun({
   startIndex,
   stackOffset,
   isSelected = false,
+  selectedCardIndex,
   isImmersive = false,
   cardWidth,
   cardHeight,
@@ -48,6 +50,24 @@ export function CompressedRun({
 
   const topCard = cards[0]; // First card (highest rank, what you'd grab to move)
   const bottomCard = cards[cards.length - 1]; // Last card (lowest rank)
+
+  // Calculate which parts should be highlighted based on selectedCardIndex
+  // A card is selected if its index is >= the selectedCardIndex
+  const effectiveSelectedIndex = isSelected && selectedCardIndex !== undefined
+    ? selectedCardIndex
+    : isSelected
+    ? startIndex // Fallback: if isSelected but no index, highlight from start
+    : -1; // No selection
+
+  const isTopCardSelected = effectiveSelectedIndex !== -1 && startIndex >= effectiveSelectedIndex;
+  const isBottomCardSelected = effectiveSelectedIndex !== -1 && (startIndex + cards.length - 1) >= effectiveSelectedIndex;
+
+  // Middle section is selected if any middle card is at or after the selection
+  // Middle cards are at indices startIndex+1 through startIndex+cards.length-2
+  const lastMiddleIndex = startIndex + cards.length - 2;
+  const isMiddleSelected = effectiveSelectedIndex !== -1 &&
+    lastMiddleIndex >= effectiveSelectedIndex &&
+    effectiveSelectedIndex <= lastMiddleIndex;
 
   // Middle cards are everything between first and last
   const hasMiddleCards = cards.length > 2;
@@ -76,7 +96,7 @@ export function CompressedRun({
         <Card
           card={topCard}
           stackOffset={0}
-          isSelected={isSelected}
+          isSelected={isTopCardSelected}
           isImmersive={isImmersive}
           cardWidth={cardWidth}
           cardHeight={cardHeight}
@@ -88,7 +108,7 @@ export function CompressedRun({
         <Card
           card={bottomCard}
           stackOffset={topCardPeek}
-          isSelected={isSelected}
+          isSelected={isBottomCardSelected}
           isImmersive={isImmersive}
           cardWidth={cardWidth}
           cardHeight={cardHeight}
@@ -118,7 +138,7 @@ export function CompressedRun({
       <Card
         card={topCard}
         stackOffset={0}
-        isSelected={isSelected}
+        isSelected={isTopCardSelected}
         isImmersive={isImmersive}
         cardWidth={cardWidth}
         cardHeight={cardHeight}
@@ -133,7 +153,7 @@ export function CompressedRun({
           className={`
             absolute left-0 right-0
             cursor-pointer select-none
-            ${isSelected ? 'ring-1 ring-yellow-400' : ''}
+            ${isMiddleSelected ? 'ring-1 ring-yellow-400' : ''}
           `}
           style={{
             top: topCardPeek,
@@ -144,16 +164,41 @@ export function CompressedRun({
           }}
           onClick={(e) => {
             e.stopPropagation();
-            // Select from the first middle card (startIndex + 1)
-            onCardClick?.(startIndex + 1);
+            // Calculate which middle card was clicked based on click position
+            const rect = e.currentTarget.getBoundingClientRect();
+            const clickY = e.clientY - rect.top;
+            const clickRatio = clickY / rect.height;
+            // Middle cards are at indices startIndex+1 through startIndex+cards.length-2
+            const middleIndex = Math.min(
+              Math.floor(clickRatio * middleCardCount),
+              middleCardCount - 1
+            );
+            onCardClick?.(startIndex + 1 + middleIndex);
           }}
           onMouseDown={(e) => {
             e.stopPropagation();
-            onMouseDown?.(e, startIndex + 1);
+            // Calculate which middle card to drag based on click position
+            const rect = e.currentTarget.getBoundingClientRect();
+            const clickY = e.clientY - rect.top;
+            const clickRatio = clickY / rect.height;
+            const middleIndex = Math.min(
+              Math.floor(clickRatio * middleCardCount),
+              middleCardCount - 1
+            );
+            onMouseDown?.(e, startIndex + 1 + middleIndex);
           }}
           onTouchStart={(e) => {
             e.stopPropagation();
-            onTouchStart?.(e, startIndex + 1);
+            // Calculate which middle card to touch based on touch position
+            const rect = e.currentTarget.getBoundingClientRect();
+            const touch = e.touches[0];
+            const touchY = touch.clientY - rect.top;
+            const touchRatio = touchY / rect.height;
+            const middleIndex = Math.min(
+              Math.floor(touchRatio * middleCardCount),
+              middleCardCount - 1
+            );
+            onTouchStart?.(e, startIndex + 1 + middleIndex);
           }}
         >
           {/* Stacked cards visual - multiple offset layers to show depth */}
@@ -167,7 +212,7 @@ export function CompressedRun({
                 top: i * 2,
                 height: middleStackHeight - (i * 2),
                 zIndex: 3 - i,
-                borderColor: isSelected ? 'rgb(250, 204, 21)' : 'rgb(209, 213, 219)',
+                borderColor: isMiddleSelected ? 'rgb(250, 204, 21)' : 'rgb(209, 213, 219)',
               }}
             />
           ))}
@@ -192,7 +237,7 @@ export function CompressedRun({
       <Card
         card={bottomCard}
         stackOffset={topCardPeek + middleStackHeight}
-        isSelected={isSelected}
+        isSelected={isBottomCardSelected}
         isImmersive={isImmersive}
         cardWidth={cardWidth}
         cardHeight={cardHeight}
