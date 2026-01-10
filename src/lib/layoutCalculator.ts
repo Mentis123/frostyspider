@@ -388,8 +388,8 @@ export function getCompressedRunHeight(
   const hasMiddleCards = cardCount > 2;
   const middleStackHeight = hasMiddleCards ? Math.max(10, cardWidth * 0.15) * scale : 0;
 
-  // Bottom card - full if last in column, peek if not
-  const bottomCardHeight = isLastInColumn ? cardHeight : Math.max(12, IDEAL_FACEUP_PEEK * scale);
+  // Bottom card - full if last in column, topCardPeek if not (to show rank)
+  const bottomCardHeight = isLastInColumn ? cardHeight : topCardPeek;
 
   // For 2-card runs, just show both cards with peek
   if (cardCount === 2) {
