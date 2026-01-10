@@ -39,11 +39,11 @@ export function SettingsModal({ isOpen, onClose, onShowSplash }: SettingsModalPr
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-xl w-full max-w-sm shadow-2xl">
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="settings-modal bg-gray-800 rounded-xl w-full max-w-sm shadow-2xl flex flex-col max-h-[95vh]">
         {/* Header */}
-        <div className="flex justify-between items-center p-4 border-b border-gray-700">
-          <h2 className="text-xl font-bold text-white">Settings</h2>
+        <div className="flex justify-between items-center p-3 sm:p-4 border-b border-gray-700 shrink-0">
+          <h2 className="text-lg sm:text-xl font-bold text-white">Settings</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-white text-2xl leading-none"
@@ -52,8 +52,8 @@ export function SettingsModal({ isOpen, onClose, onShowSplash }: SettingsModalPr
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-4 space-y-6">
+        {/* Content - scrollable */}
+        <div className="settings-content p-3 sm:p-4 space-y-4 sm:space-y-6 overflow-y-auto flex-1 min-h-0">
           {/* Suit Count */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -65,21 +65,21 @@ export function SettingsModal({ isOpen, onClose, onShowSplash }: SettingsModalPr
                   key={count}
                   onClick={() => handleSuitCountChange(count)}
                   className={`
-                    py-3 px-4 rounded-lg font-medium text-center transition-colors
+                    py-2 sm:py-3 px-3 sm:px-4 rounded-lg font-medium text-center transition-colors
                     ${settings.suitCount === count
                       ? 'bg-blue-600 text-white'
                       : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                     }
                   `}
                 >
-                  <div className="text-lg">{count}</div>
+                  <div className="text-base sm:text-lg">{count}</div>
                   <div className="text-xs opacity-75">
                     {count === 1 ? 'Easy' : count === 2 ? 'Medium' : 'Hard'}
                   </div>
                 </button>
               ))}
             </div>
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-gray-500 mt-1 sm:mt-2">
               {settings.suitCount === 1 && '♠ All Spades - Frosty\'s favorite!'}
               {settings.suitCount === 2 && '♠♥ Spades & Hearts'}
               {settings.suitCount === 4 && '♠♥♦♣ All suits - Expert mode'}
@@ -87,7 +87,7 @@ export function SettingsModal({ isOpen, onClose, onShowSplash }: SettingsModalPr
           </div>
 
           {/* Toggle Options */}
-          <div className="space-y-3">
+          <div className="space-y-2 sm:space-y-3">
             <ToggleOption
               label="Sound Effects"
               checked={settings.soundEnabled}
@@ -136,17 +136,17 @@ export function SettingsModal({ isOpen, onClose, onShowSplash }: SettingsModalPr
           </button>
         </div>
 
-        {/* Footer */}
-        <div className="p-4 border-t border-gray-700 space-y-2">
+        {/* Footer - always visible */}
+        <div className="settings-footer p-3 sm:p-4 border-t border-gray-700 shrink-0 flex flex-col gap-2">
           <button
             onClick={handleNewGame}
-            className="w-full py-3 px-4 bg-green-600 hover:bg-green-500 text-white font-medium rounded-lg transition-colors"
+            className="flex-1 py-2 sm:py-3 px-4 bg-green-600 hover:bg-green-500 text-white font-medium rounded-lg transition-colors text-sm sm:text-base"
           >
-            New Game with These Settings
+            New Game
           </button>
           <button
             onClick={onClose}
-            className="w-full py-2 px-4 text-gray-400 hover:text-white transition-colors"
+            className="flex-1 py-2 px-4 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg transition-colors text-sm sm:text-base"
           >
             Cancel
           </button>

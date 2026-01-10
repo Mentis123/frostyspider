@@ -138,3 +138,17 @@ html, body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Settings modal landscape adjustments */
+@media (orientation: landscape) and (max-height: 500px) {
+  .settings-modal {
+    max-height: 90vh !important;
+  }
+  .settings-modal .settings-content {
+    max-height: calc(90vh - 120px);
+    overflow-y: auto;
+  }
+  .settings-modal .settings-footer {
+    flex-direction: row !important;
+  }
+}
