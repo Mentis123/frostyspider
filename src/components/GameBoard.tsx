@@ -108,18 +108,30 @@ export function GameBoard() {
   }, [expandedColumn]);
 
   // Calculate column positions for drop detection
+  // Finds the closest column to the drop point to avoid issues with overlapping detection zones
   const getColumnAtPosition = useCallback((x: number, y: number): number | null => {
+    let closestCol: number | null = null;
+    let closestDistance = Infinity;
+
     for (let i = 0; i < 10; i++) {
       const ref = columnRefs.current[i];
       if (ref) {
         const rect = ref.getBoundingClientRect();
-        // Generous detection area
+        // Check if point is within generous detection area
         if (x >= rect.left - 10 && x <= rect.right + 10 && y >= rect.top - 50 && y <= rect.bottom + 100) {
-          return i;
+          // Calculate distance to center of column
+          const centerX = (rect.left + rect.right) / 2;
+          const centerY = (rect.top + rect.bottom) / 2;
+          const distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
+
+          if (distance < closestDistance) {
+            closestDistance = distance;
+            closestCol = i;
+          }
         }
       }
     }
-    return null;
+    return closestCol;
   }, []);
 
   // Feedback helper
