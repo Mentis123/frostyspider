@@ -139,6 +139,8 @@ export function CompressedRun({
             top: topCardPeek,
             height: middleStackHeight,
             width: cardWidth,
+            zIndex: 5, // Ensure middle section stacks above the top card
+            overflow: 'visible', // Ensure indicator text isn't clipped
           }}
           onClick={(e) => {
             e.stopPropagation();
