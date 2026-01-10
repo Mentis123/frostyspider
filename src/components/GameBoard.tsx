@@ -431,12 +431,12 @@ export function GameBoard() {
                   className={`
                     relative flex-shrink-0 flex flex-col justify-end
                     ${isValidTarget ? 'bg-green-600/30 rounded-lg' : ''}
-                    ${isExpanded ? 'z-30' : ''}
                   `}
                   style={{
                     width: columnWidth,
                     height: '100%',
                     maxHeight: columnLayout.maxHeight,
+                    zIndex: isExpanded ? 30 : colIndex + 1,
                   }}
                   onClick={() => column.length === 0 && handleEmptyColumnTap(colIndex)}
                 >
@@ -488,7 +488,7 @@ export function GameBoard() {
                             return (
                               <div
                                 key={`run-${segment.startIndex}`}
-                                style={{ opacity: isDragged ? 0.3 : 1, zIndex: segmentIndex + 1 }}
+                                style={{ opacity: isDragged ? 0.3 : 1, zIndex: colIndex * 20 + segmentIndex + 1 }}
                               >
                                 <CompressedRun
                                   cards={segment.cards}
@@ -536,7 +536,7 @@ export function GameBoard() {
                             return (
                               <div
                                 key={card.id}
-                                style={{ opacity: isDragged ? 0.3 : 1, zIndex: segmentIndex + 1 }}
+                                style={{ opacity: isDragged ? 0.3 : 1, zIndex: colIndex * 20 + segmentIndex + 1 }}
                               >
                                 <Card
                                   card={card}
