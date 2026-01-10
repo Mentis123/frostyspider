@@ -56,8 +56,8 @@ export function CompressedRun({
   // Calculate peek height for the top card (responsive to card size)
   const topCardPeek = Math.max(16, cardWidth * 0.28); // Header height of card
 
-  // Height for the stacked middle representation (slim, just shows there's a group)
-  const middleStackHeight = hasMiddleCards ? Math.max(10, cardWidth * 0.15) : 0;
+  // Height for the stacked middle representation (includes space for run indicator)
+  const middleStackHeight = hasMiddleCards ? Math.max(18, cardWidth * 0.22) : 0;
 
   // For runs of exactly 2 cards, just show both cards normally
   if (cards.length === 2) {
@@ -169,15 +169,15 @@ export function CompressedRun({
               }}
             />
           ))}
-          {/* Run indicator showing the range (e.g., "9-3") */}
+          {/* Run indicator showing the range (e.g., "8-4") */}
           <div
             className="absolute inset-0 flex items-center justify-center pointer-events-none"
             style={{ zIndex: 10 }}
           >
             <span
-              className="text-gray-500 font-medium leading-none"
+              className="text-gray-600 font-semibold leading-none bg-white/80 px-1 rounded"
               style={{
-                fontSize: Math.max(8, cardWidth * 0.12),
+                fontSize: Math.max(10, cardWidth * 0.14),
               }}
             >
               {topCard.rank}-{bottomCard.rank}
