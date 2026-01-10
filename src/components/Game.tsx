@@ -6,8 +6,10 @@ import { ControlBar } from './ControlBar';
 import { SettingsModal } from './SettingsModal';
 import { WinModal } from './WinModal';
 import { SplashScreen } from './SplashScreen';
+import { StackCompleteAnimation } from './StackCompleteAnimation';
 import { useGame } from '@/contexts/GameContext';
 import { gameFeedback, initAudio } from '@/lib/feedback';
+import { Card } from '@/lib/types';
 
 export function Game() {
   const { gameState, newGame } = useGame();
@@ -38,6 +40,7 @@ export function Game() {
   const [showSettings, setShowSettings] = useState(false);
   const [showWin, setShowWin] = useState(false);
   const [showNewGameConfirm, setShowNewGameConfirm] = useState(false);
+  const [stackCompleteAnimation, setStackCompleteAnimation] = useState<Card[] | null>(null);
   const prevCompletedCount = useRef(gameState.completed.length);
 
   // Feedback options
@@ -55,16 +58,21 @@ export function Game() {
     }
   }, [gameState.isWon, feedbackOptions]);
 
-  // Play feedback when a sequence is completed
+  // Play feedback and show animation when a sequence is completed
   useEffect(() => {
     if (gameState.completed.length > prevCompletedCount.current) {
       // Only play complete sound if not the winning move (win sound is better)
       if (!gameState.isWon) {
         gameFeedback('complete', feedbackOptions);
       }
+      // Trigger the stack complete animation with the newly completed cards
+      const newlyCompletedStack = gameState.completed[gameState.completed.length - 1];
+      if (newlyCompletedStack && gameState.settings.animationsEnabled !== false) {
+        setStackCompleteAnimation(newlyCompletedStack);
+      }
     }
     prevCompletedCount.current = gameState.completed.length;
-  }, [gameState.completed.length, gameState.isWon, feedbackOptions]);
+  }, [gameState.completed, gameState.isWon, feedbackOptions, gameState.settings.animationsEnabled]);
 
   const handleNewGameClick = () => {
     if (gameState.moves > 0 && !gameState.isWon) {
@@ -104,6 +112,14 @@ export function Game() {
       {/* Modals */}
       <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} onShowSplash={handleShowSplash} />
       <WinModal isOpen={showWin} onClose={() => setShowWin(false)} />
+
+      {/* Stack completion animation */}
+      {stackCompleteAnimation && (
+        <StackCompleteAnimation
+          cards={stackCompleteAnimation}
+          onComplete={() => setStackCompleteAnimation(null)}
+        />
+      )}
 
       {/* New game confirmation */}
       {showNewGameConfirm && (
