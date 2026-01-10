@@ -92,9 +92,9 @@ export function CompressedRun({
           isImmersive={isImmersive}
           cardWidth={cardWidth}
           cardHeight={cardHeight}
-          onClick={() => onCardClick?.(startIndex)}
-          onMouseDown={(e) => onMouseDown?.(e, startIndex)}
-          onTouchStart={(e) => onTouchStart?.(e, startIndex)}
+          onClick={() => onCardClick?.(startIndex + 1)}
+          onMouseDown={(e) => onMouseDown?.(e, startIndex + 1)}
+          onTouchStart={(e) => onTouchStart?.(e, startIndex + 1)}
         />
       </div>
     );
@@ -142,15 +142,16 @@ export function CompressedRun({
           }}
           onClick={(e) => {
             e.stopPropagation();
-            onCardClick?.(startIndex);
+            // Select from the first middle card (startIndex + 1)
+            onCardClick?.(startIndex + 1);
           }}
           onMouseDown={(e) => {
             e.stopPropagation();
-            onMouseDown?.(e, startIndex);
+            onMouseDown?.(e, startIndex + 1);
           }}
           onTouchStart={(e) => {
             e.stopPropagation();
-            onTouchStart?.(e, startIndex);
+            onTouchStart?.(e, startIndex + 1);
           }}
         >
           {/* Stacked cards visual - multiple offset layers to show depth */}
@@ -179,9 +180,9 @@ export function CompressedRun({
         isImmersive={isImmersive}
         cardWidth={cardWidth}
         cardHeight={cardHeight}
-        onClick={() => onCardClick?.(startIndex)}
-        onMouseDown={(e) => onMouseDown?.(e, startIndex)}
-        onTouchStart={(e) => onTouchStart?.(e, startIndex)}
+        onClick={() => onCardClick?.(startIndex + cards.length - 1)}
+        onMouseDown={(e) => onMouseDown?.(e, startIndex + cards.length - 1)}
+        onTouchStart={(e) => onTouchStart?.(e, startIndex + cards.length - 1)}
       />
     </div>
   );
