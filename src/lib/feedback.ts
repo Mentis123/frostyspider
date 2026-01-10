@@ -378,6 +378,105 @@ class AudioManager {
 export const audioManager = AudioManager.getInstance();
 
 // ============================================================================
+// MUSIC MANAGER - Background music player (60% volume relative to SFX)
+// ============================================================================
+
+class MusicManager {
+  private static instance: MusicManager;
+  private musicAudio: HTMLAudioElement | null = null;
+  private isPlaying = false;
+  private isInitialized = false;
+
+  // Music volume at 60% of SFX volume (SFX is ~0.3-0.4, so music ~0.2)
+  private readonly MUSIC_VOLUME = 0.2;
+
+  private constructor() {
+    if (typeof window !== 'undefined') {
+      this.createMusicElement();
+    }
+  }
+
+  public static getInstance(): MusicManager {
+    if (!MusicManager.instance) {
+      MusicManager.instance = new MusicManager();
+    }
+    return MusicManager.instance;
+  }
+
+  private createMusicElement(): void {
+    this.musicAudio = new Audio('/home_sound.mp3');
+    this.musicAudio.loop = true;
+    this.musicAudio.volume = this.MUSIC_VOLUME;
+    this.musicAudio.preload = 'auto';
+
+    // Handle iOS autoplay restrictions
+    this.musicAudio.addEventListener('canplaythrough', () => {
+      audioLog('Music loaded and ready');
+    });
+
+    audioLog('Music element created');
+  }
+
+  public init(): void {
+    if (this.isInitialized) return;
+
+    // Set up unlock handlers for iOS
+    const unlockHandler = () => {
+      if (this.musicAudio && this.isPlaying) {
+        this.musicAudio.play().catch(() => {
+          // Will retry on next interaction
+        });
+      }
+    };
+
+    window.addEventListener('touchstart', unlockHandler, { passive: true, once: false });
+    window.addEventListener('click', unlockHandler, { passive: true, once: false });
+
+    this.isInitialized = true;
+    audioLog('Music manager initialized');
+  }
+
+  public play(): void {
+    if (!this.musicAudio) return;
+
+    this.isPlaying = true;
+    this.musicAudio.volume = this.MUSIC_VOLUME;
+
+    const playPromise = this.musicAudio.play();
+    if (playPromise !== undefined) {
+      playPromise.then(() => {
+        audioLog('Music started playing');
+      }).catch(error => {
+        audioLog('Music play failed (will retry on interaction):', error);
+      });
+    }
+  }
+
+  public pause(): void {
+    if (!this.musicAudio) return;
+
+    this.isPlaying = false;
+    this.musicAudio.pause();
+    audioLog('Music paused');
+  }
+
+  public setEnabled(enabled: boolean): void {
+    if (enabled) {
+      this.play();
+    } else {
+      this.pause();
+    }
+  }
+
+  public getIsPlaying(): boolean {
+    return this.isPlaying;
+  }
+}
+
+// Export music manager singleton
+export const musicManager = MusicManager.getInstance();
+
+// ============================================================================
 // HAPTIC FEEDBACK (Vibration API - Android only, not iOS)
 // ============================================================================
 
@@ -456,6 +555,7 @@ export function gameFeedback(
 // Initialize audio on first call
 export function initAudio(): void {
   audioManager.init();
+  musicManager.init();
 }
 
 // ============================================================================

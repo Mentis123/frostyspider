@@ -22,6 +22,7 @@ export interface GameState {
 export interface GameSettings {
   suitCount: 1 | 2 | 4; // Number of suits to use
   soundEnabled: boolean;
+  musicEnabled: boolean; // Background music toggle
   hapticEnabled: boolean;
   immersiveEnabled: boolean; // Visual push effects for tactile feel
   animationsEnabled: boolean;
@@ -67,6 +68,7 @@ export const SUITS: Suit[] = ['spades', 'hearts', 'diamonds', 'clubs'];
 export const DEFAULT_SETTINGS: GameSettings = {
   suitCount: 1,
   soundEnabled: true,
+  musicEnabled: true,
   hapticEnabled: true,
   immersiveEnabled: true,
   animationsEnabled: true,

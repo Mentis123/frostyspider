@@ -8,7 +8,7 @@ import { WinModal } from './WinModal';
 import { SplashScreen } from './SplashScreen';
 import { StackCompleteAnimation } from './StackCompleteAnimation';
 import { useGame } from '@/contexts/GameContext';
-import { gameFeedback, initAudio } from '@/lib/feedback';
+import { gameFeedback, initAudio, musicManager } from '@/lib/feedback';
 import { Card } from '@/lib/types';
 
 export function Game() {
@@ -35,7 +35,18 @@ export function Game() {
     sessionStorage.setItem('frosty-spider-splash-shown', 'true');
     // Initialize audio after splash (user interaction helps unlock audio)
     initAudio();
-  }, []);
+    // Start music if enabled
+    if (gameState.settings.musicEnabled) {
+      musicManager.setEnabled(true);
+    }
+  }, [gameState.settings.musicEnabled]);
+
+  // Handle music toggle from settings
+  useEffect(() => {
+    if (isClient && !showSplash) {
+      musicManager.setEnabled(gameState.settings.musicEnabled);
+    }
+  }, [gameState.settings.musicEnabled, isClient, showSplash]);
 
   const [showSettings, setShowSettings] = useState(false);
   const [showWin, setShowWin] = useState(false);
