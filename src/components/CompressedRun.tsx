@@ -169,6 +169,20 @@ export function CompressedRun({
               }}
             />
           ))}
+          {/* Run indicator showing the range (e.g., "9-3") */}
+          <div
+            className="absolute inset-0 flex items-center justify-center pointer-events-none"
+            style={{ zIndex: 10 }}
+          >
+            <span
+              className="text-gray-500 font-medium leading-none"
+              style={{
+                fontSize: Math.max(8, cardWidth * 0.12),
+              }}
+            >
+              {topCard.rank}-{bottomCard.rank}
+            </span>
+          </div>
         </div>
       )}
 
