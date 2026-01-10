@@ -101,8 +101,8 @@ export function CompressedRun({
   }
 
   // Calculate total height for runs of 3+ cards
-  // Top card peek + middle stack + bottom card (full if last, peek if not)
-  const bottomCardHeight = isLastInColumn ? cardHeight : faceUpPeek;
+  // Top card peek + middle stack + bottom card (full if last, topCardPeek if not to show rank)
+  const bottomCardHeight = isLastInColumn ? cardHeight : topCardPeek;
   const totalHeight = topCardPeek + middleStackHeight + bottomCardHeight;
 
   return (
