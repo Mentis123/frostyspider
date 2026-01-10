@@ -5,7 +5,86 @@
  * Uses actual container measurements instead of guessing.
  */
 
-import { Card } from './types';
+import { Card, RANK_VALUES } from './types';
+
+// Segment types for rendering columns with run compression
+export interface ColumnSegment {
+  type: 'facedown' | 'single' | 'run';
+  startIndex: number;
+  endIndex: number; // inclusive
+  cards: Card[];
+}
+
+/**
+ * Detect runs (valid same-suit descending sequences) in a column
+ * Returns segments describing how to render each part of the column
+ * Runs of 3+ cards get compressed, smaller groups render normally
+ */
+export function detectColumnSegments(column: Card[]): ColumnSegment[] {
+  if (column.length === 0) return [];
+
+  const segments: ColumnSegment[] = [];
+  let i = 0;
+
+  while (i < column.length) {
+    const card = column[i];
+
+    // Face-down cards - group consecutive face-down cards
+    if (!card.faceUp) {
+      const start = i;
+      while (i < column.length && !column[i].faceUp) {
+        i++;
+      }
+      segments.push({
+        type: 'facedown',
+        startIndex: start,
+        endIndex: i - 1,
+        cards: column.slice(start, i),
+      });
+      continue;
+    }
+
+    // Face-up card - check for run
+    const runStart = i;
+    let runEnd = i;
+
+    // Extend run while valid (same suit, descending by 1)
+    while (runEnd + 1 < column.length) {
+      const current = column[runEnd];
+      const next = column[runEnd + 1];
+
+      if (!next.faceUp) break;
+      if (current.suit !== next.suit) break;
+      if (RANK_VALUES[current.rank] !== RANK_VALUES[next.rank] + 1) break;
+
+      runEnd++;
+    }
+
+    const runLength = runEnd - runStart + 1;
+
+    if (runLength >= 3) {
+      // This is a compressible run (3+ cards)
+      segments.push({
+        type: 'run',
+        startIndex: runStart,
+        endIndex: runEnd,
+        cards: column.slice(runStart, runEnd + 1),
+      });
+      i = runEnd + 1;
+    } else {
+      // Single card or pair - render individually
+      segments.push({
+        type: 'single',
+        startIndex: runStart,
+        endIndex: runStart,
+        cards: [column[runStart]],
+      });
+      i = runStart + 1;
+    }
+  }
+
+  return segments;
+}
 
 // Layout configuration
 export interface LayoutConfig {
@@ -289,4 +368,161 @@ export function isStackCompressed(offsets: StackOffsets, cardCount: number): boo
   const faceUpCompressed = offsets.faceUpOffset < IDEAL_FACEUP_PEEK - 2;
 
   return faceDownCompressed || faceUpCompressed;
+}
+
+// Height taken by a compressed run indicator bar
+const RUN_INDICATOR_HEIGHT = 16; // Base height of the run indicator bar
+
+/**
+ * Calculate the height of a run indicator based on card width
+ */
+export function getRunIndicatorHeight(cardWidth: number, scale: number = 1): number {
+  // Use responsive sizing based on card width, with a minimum
+  const baseHeight = Math.max(14, cardWidth * 0.22);
+  return Math.max(10, baseHeight * scale);
+}
+
+export interface SegmentLayout {
+  segments: ColumnSegment[];
+  segmentOffsets: number[]; // Y offset where each segment starts
+  totalHeight: number;
+  faceDownOffset: number;
+  faceUpOffset: number;
+}
+
+/**
+ * Calculate layout for a column using run compression
+ * This provides much better space efficiency for long runs
+ */
+export function calculateSegmentLayout(
+  column: Card[],
+  cardHeight: number,
+  maxStackHeight: number,
+  useCompression: boolean = true,
+  cardWidth?: number
+): SegmentLayout {
+  // Calculate card width from height using aspect ratio if not provided
+  const effectiveCardWidth = cardWidth || (cardHeight / CARD_ASPECT_RATIO);
+  const segments = detectColumnSegments(column);
+
+  if (segments.length === 0) {
+    return {
+      segments: [],
+      segmentOffsets: [],
+      totalHeight: 0,
+      faceDownOffset: IDEAL_FACEDOWN_PEEK,
+      faceUpOffset: IDEAL_FACEUP_PEEK,
+    };
+  }
+
+  // If compression disabled, fall back to regular layout
+  if (!useCompression) {
+    const offsets = calculateSmartOverlap(column, cardHeight, maxStackHeight);
+    const segmentOffsets: number[] = [];
+    let currentOffset = 0;
+
+    for (const segment of segments) {
+      segmentOffsets.push(currentOffset);
+      for (let i = segment.startIndex; i <= segment.endIndex; i++) {
+        if (i < column.length - 1) {
+          currentOffset += column[i].faceUp ? offsets.faceUpOffset : offsets.faceDownOffset;
+        }
+      }
+    }
+
+    return {
+      segments,
+      segmentOffsets,
+      totalHeight: currentOffset + cardHeight,
+      faceDownOffset: offsets.faceDownOffset,
+      faceUpOffset: offsets.faceUpOffset,
+    };
+  }
+
+  // Calculate ideal heights using responsive indicator height
+  const idealIndicatorHeight = getRunIndicatorHeight(effectiveCardWidth, 1);
+
+  let idealTotalHeight = 0;
+
+  for (const segment of segments) {
+    if (segment.type === 'facedown') {
+      // Face-down cards get minimal peek
+      idealTotalHeight += segment.cards.length * IDEAL_FACEDOWN_PEEK;
+    } else if (segment.type === 'run') {
+      // Run: compressed into indicator bar + bottom card (if last)
+      if (segment.endIndex === column.length - 1) {
+        // This run ends the column - show indicator + full bottom card
+        idealTotalHeight += idealIndicatorHeight + cardHeight;
+      } else {
+        // Mid-column run - just the indicator bar
+        idealTotalHeight += idealIndicatorHeight;
+      }
+    } else {
+      // Single card
+      if (segment.endIndex === column.length - 1) {
+        idealTotalHeight += cardHeight;
+      } else {
+        idealTotalHeight += IDEAL_FACEUP_PEEK;
+      }
+    }
+  }
+
+  // If ideal fits, use it. Otherwise scale down.
+  const scale = idealTotalHeight <= maxStackHeight ? 1 : maxStackHeight / idealTotalHeight;
+
+  const faceDownOffset = Math.max(MIN_FACEDOWN_PEEK, IDEAL_FACEDOWN_PEEK * scale);
+  const faceUpOffset = Math.max(MIN_FACEUP_PEEK, IDEAL_FACEUP_PEEK * scale);
+  const runIndicatorHeight = getRunIndicatorHeight(effectiveCardWidth, scale);
+
+  // Now calculate actual offsets
+  const segmentOffsets: number[] = [];
+  let currentOffset = 0;
+
+  for (let i = 0; i < segments.length; i++) {
+    const segment = segments[i];
+    segmentOffsets.push(currentOffset);
+
+    if (segment.type === 'facedown') {
+      currentOffset += segment.cards.length * faceDownOffset;
+    } else if (segment.type === 'run') {
+      if (segment.endIndex === column.length - 1) {
+        // This is the last segment - indicator + full card
+        currentOffset += runIndicatorHeight + cardHeight;
+      } else {
+        // Mid-column run - just the indicator bar
+        currentOffset += runIndicatorHeight;
+      }
+    } else {
+      // Single card
+      if (segment.endIndex === column.length - 1) {
+        currentOffset += cardHeight;
+      } else {
+        currentOffset += faceUpOffset;
+      }
+    }
+  }
+
+  return {
+    segments,
+    segmentOffsets,
+    totalHeight: currentOffset,
+    faceDownOffset,
+    faceUpOffset,
+  };
+}
+
+/**
+ * Get the height of a compressed run segment
+ */
+export function getRunSegmentHeight(
+  segment: ColumnSegment,
+  cardHeight: number,
+  isLastInColumn: boolean,
+  scale: number = 1
+): number {
+  const runIndicatorHeight = Math.max(10, RUN_INDICATOR_HEIGHT * scale);
+  if (isLastInColumn) {
+    return cardHeight + runIndicatorHeight;
+  }
+  return Math.max(MIN_FACEUP_PEEK, IDEAL_FACEUP_PEEK * scale) + runIndicatorHeight;
 }

@@ -12,9 +12,13 @@ import {
   calculateExpandedOffsets,
   getCardStackOffset,
   isStackCompressed,
+  calculateSegmentLayout,
+  ColumnSegment,
+  SegmentLayout,
   LayoutResult,
   StackOffsets,
 } from '@/lib/layoutCalculator';
+import { CompressedRun } from './CompressedRun';
 
 // Hook to observe container dimensions using ResizeObserver
 function useContainerDimensions(containerRef: React.RefObject<HTMLDivElement | null>) {
@@ -315,7 +319,7 @@ export function GameBoard() {
     return 0;
   };
 
-  // Calculate offsets and heights for each column
+  // Calculate offsets and heights for each column using segment-based layout
   const columnLayouts = useMemo(() => {
     return gameState.tableau.map((column, colIndex) => {
       const rowIndex = getRowIndex(colIndex);
@@ -325,25 +329,38 @@ export function GameBoard() {
       // For expanded columns, calculate with more generous max (double row height)
       const expandedMaxHeight = Math.min(maxHeight * 2, containerDimensions.height - 80);
 
+      // Use segment-based layout for compression (disabled when expanded)
+      const segmentLayout = calculateSegmentLayout(
+        column,
+        cardHeight,
+        isExpanded ? expandedMaxHeight : maxHeight,
+        !isExpanded, // Use compression when NOT expanded
+        cardWidth
+      );
+
+      // Also calculate traditional offsets for backward compatibility
       const offsets: StackOffsets = isExpanded
         ? calculateExpandedOffsets(column, cardHeight, expandedMaxHeight)
         : calculateSmartOverlap(column, cardHeight, maxHeight);
 
-      // Calculate actual stack height
-      let stackHeight = cardHeight;
-      for (let i = 0; i < column.length - 1; i++) {
-        stackHeight += column[i].faceUp ? offsets.faceUpOffset : offsets.faceDownOffset;
+      // Calculate actual stack height (use segment layout when compressed)
+      let stackHeight = segmentLayout.totalHeight;
+      if (stackHeight === 0 && column.length > 0) {
+        stackHeight = cardHeight;
       }
 
-      // Check if this stack is compressed (cards overlapping more than ideal)
-      const isCompressed = isStackCompressed(offsets, column.length);
+      // Check if this stack is compressed (has runs that could be compressed)
+      const hasCompressibleRuns = segmentLayout.segments.some(s => s.type === 'run');
+      const isCompressed = isStackCompressed(offsets, column.length) || hasCompressibleRuns;
 
       return {
         offsets,
         stackHeight,
         maxHeight: isExpanded ? expandedMaxHeight : maxHeight,
-        needsScroll: offsets.needsScroll,
+        needsScroll: false,
         isCompressed,
+        segmentLayout,
+        useSegmentRendering: !isExpanded && hasCompressibleRuns,
       };
     });
   }, [gameState.tableau, rowHeights, cardHeight, expandedColumn, containerDimensions.height]);
@@ -430,54 +447,146 @@ export function GameBoard() {
                         }
                       }}
                     >
-                      {column.map((card, cardIndex) => {
-                        const isDragged =
-                          dragState &&
-                          dragState.fromCol === colIndex &&
-                          cardIndex >= dragState.cardIndex;
+                      {/* Use segment-based rendering when we have compressible runs */}
+                      {columnLayout.useSegmentRendering ? (
+                        // Segment-based rendering with run compression
+                        columnLayout.segmentLayout.segments.map((segment, segmentIndex) => {
+                          const segmentOffset = columnLayout.segmentLayout.segmentOffsets[segmentIndex];
+                          const isLastSegment = segmentIndex === columnLayout.segmentLayout.segments.length - 1;
 
-                        const isSelected =
-                          selection &&
-                          selection.column === colIndex &&
-                          cardIndex >= selection.cardIndex;
+                          if (segment.type === 'run') {
+                            // Check if any card in this run is being dragged
+                            const isDragged = dragState &&
+                              dragState.fromCol === colIndex &&
+                              dragState.cardIndex >= segment.startIndex &&
+                              dragState.cardIndex <= segment.endIndex;
 
-                        const stackOffset = getCardStackOffset(column, cardIndex, columnLayout.offsets);
+                            // Check if any card in this run is selected
+                            const isSelected = selection &&
+                              selection.column === colIndex &&
+                              selection.cardIndex >= segment.startIndex &&
+                              selection.cardIndex <= segment.endIndex;
 
-                        return (
-                          <div
-                            key={card.id}
-                            style={{
-                              opacity: isDragged ? 0.3 : 1,
-                            }}
-                          >
-                            <Card
-                              card={card}
-                              stackOffset={stackOffset}
-                              isSelected={!!isSelected}
-                              isImmersive={isImmersive}
-                              cardWidth={cardWidth}
-                              cardHeight={cardHeight}
-                              onClick={() => {
-                                if (!card.faceUp && columnLayout.isCompressed && !isExpanded) {
-                                  // Tapping face-down cards in compressed stack expands it
-                                  handleColumnTap(colIndex);
-                                } else {
-                                  // Normal card tap behavior (works when expanded too)
-                                  handleCardTap(colIndex, cardIndex);
-                                }
+                            return (
+                              <div
+                                key={`run-${segment.startIndex}`}
+                                style={{ opacity: isDragged ? 0.3 : 1 }}
+                              >
+                                <CompressedRun
+                                  cards={segment.cards}
+                                  startIndex={segment.startIndex}
+                                  stackOffset={segmentOffset}
+                                  isSelected={!!isSelected}
+                                  isImmersive={isImmersive}
+                                  cardWidth={cardWidth}
+                                  cardHeight={cardHeight}
+                                  isLastInColumn={isLastSegment}
+                                  onCardClick={(cardIndex) => handleCardTap(colIndex, cardIndex)}
+                                  onMouseDown={(e, cardIndex) => handleMouseDown(e, colIndex, cardIndex)}
+                                  onTouchStart={(e, cardIndex) => handleTouchStart(e, colIndex, cardIndex)}
+                                  onExpandClick={() => handleColumnTap(colIndex)}
+                                />
+                              </div>
+                            );
+                          }
+
+                          // Face-down or single cards - render individually
+                          return segment.cards.map((card, cardInSegmentIndex) => {
+                            const cardIndex = segment.startIndex + cardInSegmentIndex;
+                            const isDragged = dragState &&
+                              dragState.fromCol === colIndex &&
+                              cardIndex >= dragState.cardIndex;
+                            const isSelected = selection &&
+                              selection.column === colIndex &&
+                              cardIndex >= selection.cardIndex;
+
+                            // Calculate offset for this card within the segment
+                            let cardOffset = segmentOffset;
+                            for (let i = 0; i < cardInSegmentIndex; i++) {
+                              cardOffset += segment.cards[i].faceUp
+                                ? columnLayout.segmentLayout.faceUpOffset
+                                : columnLayout.segmentLayout.faceDownOffset;
+                            }
+
+                            return (
+                              <div
+                                key={card.id}
+                                style={{ opacity: isDragged ? 0.3 : 1 }}
+                              >
+                                <Card
+                                  card={card}
+                                  stackOffset={cardOffset}
+                                  isSelected={!!isSelected}
+                                  isImmersive={isImmersive}
+                                  cardWidth={cardWidth}
+                                  cardHeight={cardHeight}
+                                  onClick={() => {
+                                    if (!card.faceUp) {
+                                      handleColumnTap(colIndex);
+                                    } else {
+                                      handleCardTap(colIndex, cardIndex);
+                                    }
+                                  }}
+                                  onMouseDown={(e: React.MouseEvent) =>
+                                    card.faceUp && handleMouseDown(e, colIndex, cardIndex)
+                                  }
+                                  onTouchStart={(e: React.TouchEvent) =>
+                                    card.faceUp && handleTouchStart(e, colIndex, cardIndex)
+                                  }
+                                />
+                              </div>
+                            );
+                          });
+                        })
+                      ) : (
+                        // Traditional card-by-card rendering (when expanded or no runs)
+                        column.map((card, cardIndex) => {
+                          const isDragged =
+                            dragState &&
+                            dragState.fromCol === colIndex &&
+                            cardIndex >= dragState.cardIndex;
+
+                          const isSelected =
+                            selection &&
+                            selection.column === colIndex &&
+                            cardIndex >= selection.cardIndex;
+
+                          const stackOffset = getCardStackOffset(column, cardIndex, columnLayout.offsets);
+
+                          return (
+                            <div
+                              key={card.id}
+                              style={{
+                                opacity: isDragged ? 0.3 : 1,
                               }}
-                              onMouseDown={(e: React.MouseEvent) =>
-                                card.faceUp && handleMouseDown(e, colIndex, cardIndex)
-                              }
-                              onTouchStart={(e: React.TouchEvent) =>
-                                card.faceUp && handleTouchStart(e, colIndex, cardIndex)
-                              }
-                            />
-                          </div>
-                        );
-                      })}
-                      {/* Tap zone overlay for compressed stacks - covers top portion */}
-                      {columnLayout.isCompressed && !isExpanded && column.length > 1 && (
+                            >
+                              <Card
+                                card={card}
+                                stackOffset={stackOffset}
+                                isSelected={!!isSelected}
+                                isImmersive={isImmersive}
+                                cardWidth={cardWidth}
+                                cardHeight={cardHeight}
+                                onClick={() => {
+                                  if (!card.faceUp && columnLayout.isCompressed && !isExpanded) {
+                                    handleColumnTap(colIndex);
+                                  } else {
+                                    handleCardTap(colIndex, cardIndex);
+                                  }
+                                }}
+                                onMouseDown={(e: React.MouseEvent) =>
+                                  card.faceUp && handleMouseDown(e, colIndex, cardIndex)
+                                }
+                                onTouchStart={(e: React.TouchEvent) =>
+                                  card.faceUp && handleTouchStart(e, colIndex, cardIndex)
+                                }
+                              />
+                            </div>
+                          );
+                        })
+                      )}
+                      {/* Tap zone overlay for compressed stacks without runs - covers top portion */}
+                      {columnLayout.isCompressed && !isExpanded && !columnLayout.useSegmentRendering && column.length > 1 && (
                         <div
                           className="absolute top-0 left-0 right-0 cursor-pointer z-10"
                           style={{ height: Math.min(columnLayout.stackHeight * 0.4, 60) }}
@@ -486,7 +595,6 @@ export function GameBoard() {
                             handleColumnTap(colIndex);
                           }}
                         >
-                          {/* Gradient hint that stack continues */}
                           <div className="absolute inset-0 bg-gradient-to-b from-black/30 to-transparent rounded-t-lg pointer-events-none" />
                         </div>
                       )}
