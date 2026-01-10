@@ -554,3 +554,86 @@ export function getRunSegmentHeight(
     scale
   );
 }
+
+/**
+ * Calculate what height a column needs given its cards
+ * Uses segment-based calculation for accurate height estimation
+ */
+export function calculateColumnNeededHeight(
+  column: Card[],
+  cardWidth: number,
+  cardHeight: number
+): number {
+  if (column.length === 0) return cardHeight; // Empty slot still needs height
+  if (column.length === 1) return cardHeight;
+
+  const segments = detectColumnSegments(column);
+  let totalHeight = 0;
+
+  for (const segment of segments) {
+    if (segment.type === 'facedown') {
+      totalHeight += segment.cards.length * IDEAL_FACEDOWN_PEEK;
+    } else if (segment.type === 'run') {
+      const isLastInColumn = segment.endIndex === column.length - 1;
+      totalHeight += getCompressedRunHeight(
+        segment.cards.length,
+        cardWidth,
+        cardHeight,
+        isLastInColumn,
+        1
+      );
+    } else {
+      // Single card
+      if (segment.endIndex === column.length - 1) {
+        totalHeight += cardHeight;
+      } else {
+        totalHeight += IDEAL_FACEUP_PEEK;
+      }
+    }
+  }
+
+  return totalHeight;
+}
+
+/**
+ * Calculate dynamic row heights based on actual card stacks
+ * Rows with shorter stacks compact to make room for taller stacks
+ */
+export function calculateDynamicRowHeights(
+  tableau: Card[][],
+  rowConfig: number[][],
+  cardWidth: number,
+  cardHeight: number,
+  totalAvailableHeight: number,
+  minRowHeight: number
+): number[] {
+  // Calculate needed height for each row (max stack height in that row)
+  const rowNeededHeights = rowConfig.map((rowCols) => {
+    const colHeights = rowCols.map((colIndex) =>
+      calculateColumnNeededHeight(tableau[colIndex] || [], cardWidth, cardHeight)
+    );
+    return Math.max(...colHeights, minRowHeight);
+  });
+
+  const totalNeeded = rowNeededHeights.reduce((a, b) => a + b, 0);
+  const gapSpace = GAP_SIZE * (rowConfig.length + 1);
+  const availableForRows = totalAvailableHeight - gapSpace;
+
+  // If all rows fit comfortably, distribute remaining space to bottom row
+  if (totalNeeded <= availableForRows) {
+    const extraSpace = availableForRows - totalNeeded;
+    return rowNeededHeights.map((height, index) => {
+      // Give extra space to the last row (typically has most columns)
+      if (index === rowConfig.length - 1) {
+        return height + extraSpace;
+      }
+      return height;
+    });
+  }
+
+  // If we need to compress, scale all rows proportionally
+  const scale = availableForRows / totalNeeded;
+  return rowNeededHeights.map((height) =>
+    Math.max(minRowHeight, height * scale)
+  );
+}

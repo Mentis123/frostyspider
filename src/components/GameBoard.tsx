@@ -13,6 +13,7 @@ import {
   getCardStackOffset,
   isStackCompressed,
   calculateSegmentLayout,
+  calculateDynamicRowHeights,
   ColumnSegment,
   SegmentLayout,
   LayoutResult,
@@ -96,7 +97,26 @@ export function GameBoard() {
     });
   }, [containerDimensions]);
 
-  const { cardWidth, cardHeight, columnWidth, gapSize, isLandscape, rowConfig, rowHeights } = layout;
+  const { cardWidth, cardHeight, columnWidth, gapSize, isLandscape, rowConfig, rowHeights: baseRowHeights } = layout;
+
+  // Calculate dynamic row heights based on actual stack heights
+  const dynamicRowHeights = useMemo(() => {
+    if (containerDimensions.height === 0 || isLandscape) {
+      return baseRowHeights;
+    }
+
+    const minRowHeight = cardHeight + 20; // Minimum height for a row
+    return calculateDynamicRowHeights(
+      gameState.tableau,
+      rowConfig,
+      cardWidth,
+      cardHeight,
+      containerDimensions.height,
+      minRowHeight
+    );
+  }, [gameState.tableau, rowConfig, cardWidth, cardHeight, containerDimensions.height, baseRowHeights, isLandscape]);
+
+  const rowHeights = dynamicRowHeights;
 
   // Handle column tap to expand/collapse
   const handleColumnTap = useCallback((colIndex: number) => {
