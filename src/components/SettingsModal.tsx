@@ -42,7 +42,7 @@ export function SettingsModal({ isOpen, onClose, onShowSplash }: SettingsModalPr
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-2 sm:p-4">
       <div className="settings-modal bg-gray-800 rounded-xl w-full max-w-sm shadow-2xl flex flex-col max-h-[95vh]">
         {/* Header */}
-        <div className="flex justify-between items-center p-3 sm:p-4 border-b border-gray-700 shrink-0">
+        <div className="settings-header flex justify-between items-center p-3 sm:p-4 border-b border-gray-700 shrink-0">
           <h2 className="text-lg sm:text-xl font-bold text-white">Settings</h2>
           <button
             onClick={onClose}
@@ -53,13 +53,13 @@ export function SettingsModal({ isOpen, onClose, onShowSplash }: SettingsModalPr
         </div>
 
         {/* Content - scrollable */}
-        <div className="settings-content p-3 sm:p-4 space-y-4 sm:space-y-6 overflow-y-auto flex-1 min-h-0">
+        <div className="settings-content p-3 sm:p-4 space-y-4 sm:space-y-6 overflow-y-auto flex-1 min-h-0 overscroll-contain">
           {/* Suit Count */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
               Number of Suits
             </label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="suit-buttons grid grid-cols-3 gap-2">
               {([1, 2, 4] as const).map(count => (
                 <button
                   key={count}
@@ -73,13 +73,13 @@ export function SettingsModal({ isOpen, onClose, onShowSplash }: SettingsModalPr
                   `}
                 >
                   <div className="text-base sm:text-lg">{count}</div>
-                  <div className="text-xs opacity-75">
+                  <div className="suit-label text-xs opacity-75">
                     {count === 1 ? 'Easy' : count === 2 ? 'Medium' : 'Hard'}
                   </div>
                 </button>
               ))}
             </div>
-            <p className="text-xs text-gray-500 mt-1 sm:mt-2">
+            <p className="suit-description text-xs text-gray-500 mt-1 sm:mt-2">
               {settings.suitCount === 1 && '♠ All Spades - Frosty\'s favorite!'}
               {settings.suitCount === 2 && '♠♥ Spades & Hearts'}
               {settings.suitCount === 4 && '♠♥♦♣ All suits - Expert mode'}

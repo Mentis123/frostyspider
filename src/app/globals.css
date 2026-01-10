@@ -139,16 +139,59 @@ html, body {
   scrollbar-width: none;
 }
 
-/* Settings modal landscape adjustments */
-@media (orientation: landscape) and (max-height: 500px) {
+/* Settings modal landscape/small height adjustments */
+@media (max-height: 500px) {
   .settings-modal {
-    max-height: 90vh !important;
+    max-height: calc(100vh - 16px) !important;
+    max-width: 420px !important;
+    overflow: hidden !important;
+  }
+  .settings-modal .settings-header {
+    padding: 6px 12px !important;
+    min-height: 0 !important;
+  }
+  .settings-modal .settings-header h2 {
+    font-size: 1rem !important;
   }
   .settings-modal .settings-content {
-    max-height: calc(90vh - 120px);
-    overflow-y: auto;
+    padding: 6px 12px !important;
+    flex: 1 1 0 !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .settings-modal .settings-content > * {
+    margin-bottom: 6px !important;
+    margin-top: 0 !important;
+  }
+  /* Hide suit description in small viewports */
+  .settings-modal .suit-description {
+    display: none !important;
   }
   .settings-modal .settings-footer {
+    padding: 6px 12px !important;
     flex-direction: row !important;
+    gap: 8px !important;
+    min-height: 0 !important;
+  }
+  .settings-modal .settings-footer button {
+    padding: 6px 12px !important;
+    font-size: 0.875rem !important;
+  }
+}
+
+/* Extra small height - extreme compact mode */
+@media (max-height: 350px) {
+  .settings-modal .settings-content {
+    padding: 4px 10px !important;
+  }
+  .settings-modal .settings-content > * {
+    margin-bottom: 4px !important;
+  }
+  .settings-modal .suit-buttons button {
+    padding: 4px 8px !important;
+  }
+  .settings-modal .suit-buttons .suit-label {
+    display: none !important;
   }
 }
