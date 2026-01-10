@@ -489,6 +489,7 @@ export function GameBoard() {
                                   startIndex={segment.startIndex}
                                   stackOffset={segmentOffset}
                                   isSelected={!!isSelected}
+                                  selectedCardIndex={isSelected ? selection.cardIndex : undefined}
                                   isImmersive={isImmersive}
                                   cardWidth={cardWidth}
                                   cardHeight={cardHeight}
