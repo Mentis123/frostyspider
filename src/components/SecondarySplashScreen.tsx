@@ -69,6 +69,32 @@ export function SecondarySplashScreen({
         >
           Open Vibe Academy
         </a>
+        <div className="mt-5 space-y-1 text-sm text-gray-300">
+          <p>
+            From the Mind of{' '}
+            <a
+              href="https://x.com/adam_x_mentis"
+              target="_blank"
+              rel="noreferrer"
+              onClick={(event) => event.stopPropagation()}
+              className="font-semibold text-blue-200 hover:text-white transition"
+            >
+              Mentis
+            </a>
+          </p>
+          <p>Love it? Got Feedback?</p>
+          <p>
+            <a
+              href="https://x.com/adam_x_mentis"
+              target="_blank"
+              rel="noreferrer"
+              onClick={(event) => event.stopPropagation()}
+              className="font-semibold text-blue-200 hover:text-white transition"
+            >
+              DMs Always Open!
+            </a>
+          </p>
+        </div>
       </div>
 
       <div
