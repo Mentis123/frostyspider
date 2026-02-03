@@ -6,7 +6,7 @@ import { ControlBar } from './ControlBar';
 import { SettingsModal } from './SettingsModal';
 import { WinModal } from './WinModal';
 import { SplashScreen } from './SplashScreen';
-import { VibeSplashScreen } from './VibeSplashScreen';
+import { SecondarySplashScreen } from './SecondarySplashScreen';
 import { StackCompleteAnimation } from './StackCompleteAnimation';
 import { useGame } from '@/contexts/GameContext';
 import { gameFeedback, initAudio, musicManager } from '@/lib/feedback';
@@ -21,6 +21,7 @@ export function Game() {
   const [showVibeAfterSplash, setShowVibeAfterSplash] = useState(false);
   const [vibeSplashDuration, setVibeSplashDuration] = useState(4000);
   const [isClient, setIsClient] = useState(false);
+  const [secondarySplashDuration, setSecondarySplashDuration] = useState(4000);
 
   // Check sessionStorage on client mount
   useEffect(() => {
@@ -32,12 +33,18 @@ export function Game() {
       const hasSeenVibeSplash = sessionStorage.getItem('frosty-spider-vibe-splash-shown');
       setVibeSplashDuration(hasSeenVibeSplash ? 4000 : 7000);
     } else {
+      setSecondarySplashDuration(4000);
       // If splash already shown, init audio immediately
       initAudio();
     }
   }, []);
 
-  const finalizeSplashSequence = useCallback(() => {
+  const handlePrimarySplashComplete = useCallback(() => {
+    setSplashStage('secondary');
+  }, []);
+
+  const handleSecondarySplashComplete = useCallback(() => {
+    setSplashStage(null);
     sessionStorage.setItem('frosty-spider-splash-shown', 'true');
     // Initialize audio after splash (user interaction helps unlock audio)
     initAudio();
@@ -141,10 +148,10 @@ export function Game() {
         <SplashScreen onComplete={handlePrimarySplashComplete} duration={2500} />
       )}
       {splashStage === 'secondary' && (
-        <SecondarySplashScreen onComplete={handleSecondarySplashComplete} duration={3000} />
-      )}
-      {showVibeSplash && (
-        <VibeSplashScreen onComplete={handleVibeSplashComplete} duration={3000} />
+        <SecondarySplashScreen
+          onComplete={handleSecondarySplashComplete}
+          duration={secondarySplashDuration}
+        />
       )}
       {showVibeSplash && (
         <VibeSplashScreen onComplete={handleVibeSplashComplete} duration={vibeSplashDuration} />
