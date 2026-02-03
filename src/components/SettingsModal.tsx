@@ -133,19 +133,22 @@ export function SettingsModal({ isOpen, onClose, onShowSplash, onShowVibeSplash 
             />
           </div>
 
-          {/* Splash Screen Button */}
-          <button
-            onClick={handleShowSplash}
-            className="w-full py-2 px-4 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg transition-colors text-sm"
-          >
-            Splash Screen
-          </button>
-          <button
-            onClick={handleShowVibeSplash}
-            className="w-full py-2 px-4 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg transition-colors text-sm"
-          >
-            Vibe Academy Message
-          </button>
+          {/* Splash Screen Buttons */}
+          <div className="space-y-2">
+            <p className="text-xs uppercase tracking-wide text-gray-500">Splash Screens</p>
+            <button
+              onClick={handleShowSplash}
+              className="w-full py-2 px-4 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg transition-colors text-sm"
+            >
+              Splash Screen
+            </button>
+            <button
+              onClick={handleShowVibeSplash}
+              className="w-full py-2 px-4 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg transition-colors text-sm"
+            >
+              Vibe Academy Message
+            </button>
+          </div>
         </div>
 
         {/* Footer - always visible */}

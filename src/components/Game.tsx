@@ -16,7 +16,10 @@ export function Game() {
   const { gameState, newGame } = useGame();
 
   // Splash screen state - starts false to avoid hydration mismatch
-  const [splashStage, setSplashStage] = useState<'primary' | 'secondary' | null>(null);
+  const [showSplash, setShowSplash] = useState(false);
+  const [showVibeSplash, setShowVibeSplash] = useState(false);
+  const [showVibeAfterSplash, setShowVibeAfterSplash] = useState(false);
+  const [vibeSplashDuration, setVibeSplashDuration] = useState(4000);
   const [isClient, setIsClient] = useState(false);
   const [secondarySplashDuration, setSecondarySplashDuration] = useState(4000);
 
@@ -25,8 +28,10 @@ export function Game() {
     setIsClient(true);
     const hasSeenSplash = sessionStorage.getItem('frosty-spider-splash-shown');
     if (!hasSeenSplash) {
-      setSecondarySplashDuration(7000);
-      setSplashStage('primary');
+      setShowSplash(true);
+      setShowVibeAfterSplash(true);
+      const hasSeenVibeSplash = sessionStorage.getItem('frosty-spider-vibe-splash-shown');
+      setVibeSplashDuration(hasSeenVibeSplash ? 4000 : 7000);
     } else {
       setSecondarySplashDuration(4000);
       // If splash already shown, init audio immediately
@@ -63,6 +68,7 @@ export function Game() {
 
   const handleVibeSplashComplete = useCallback(() => {
     setShowVibeSplash(false);
+    sessionStorage.setItem('frosty-spider-vibe-splash-shown', 'true');
     finalizeSplashSequence();
   }, [finalizeSplashSequence]);
 
@@ -119,11 +125,14 @@ export function Game() {
   };
 
   const handleShowSplash = useCallback(() => {
-    setSecondarySplashDuration(4000);
-    setSplashStage('primary');
+    setShowVibeAfterSplash(true);
+    const hasSeenVibeSplash = sessionStorage.getItem('frosty-spider-vibe-splash-shown');
+    setVibeSplashDuration(hasSeenVibeSplash ? 4000 : 7000);
+    setShowSplash(true);
   }, []);
 
   const handleShowVibeSplash = useCallback(() => {
+    setVibeSplashDuration(4000);
     setShowVibeSplash(true);
   }, []);
 
@@ -143,6 +152,9 @@ export function Game() {
           onComplete={handleSecondarySplashComplete}
           duration={secondarySplashDuration}
         />
+      )}
+      {showVibeSplash && (
+        <VibeSplashScreen onComplete={handleVibeSplashComplete} duration={vibeSplashDuration} />
       )}
 
       {/* Game area - maximized */}
