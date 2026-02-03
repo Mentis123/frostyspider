@@ -67,10 +67,10 @@ export function Game() {
 
   // Handle music toggle from settings
   useEffect(() => {
-    if (isClient && !showSplash) {
+    if (isClient && splashStage === null) {
       musicManager.setEnabled(gameState.settings.musicEnabled);
     }
-  }, [gameState.settings.musicEnabled, isClient, showSplash]);
+  }, [gameState.settings.musicEnabled, isClient, splashStage]);
 
   const [showSettings, setShowSettings] = useState(false);
   const [showWin, setShowWin] = useState(false);
@@ -137,8 +137,14 @@ export function Game() {
   return (
     <div className="flex flex-col h-[100dvh] bg-gray-900">
       {/* Splash screen - shows briefly on first load */}
-      {showSplash && (
-        <SplashScreen onComplete={handleSplashComplete} duration={2500} />
+      {splashStage === 'primary' && (
+        <SplashScreen onComplete={handlePrimarySplashComplete} duration={2500} />
+      )}
+      {splashStage === 'secondary' && (
+        <SecondarySplashScreen onComplete={handleSecondarySplashComplete} duration={3000} />
+      )}
+      {showVibeSplash && (
+        <VibeSplashScreen onComplete={handleVibeSplashComplete} duration={3000} />
       )}
       {showVibeSplash && (
         <VibeSplashScreen onComplete={handleVibeSplashComplete} duration={vibeSplashDuration} />
