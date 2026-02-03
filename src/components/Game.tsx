@@ -8,6 +8,7 @@ import { WinModal } from './WinModal';
 import { SplashScreen } from './SplashScreen';
 import { SecondarySplashScreen } from './SecondarySplashScreen';
 import { StackCompleteAnimation } from './StackCompleteAnimation';
+import { VibeSplashScreen } from './VibeSplashScreen';
 import { useGame } from '@/contexts/GameContext';
 import { gameFeedback, initAudio, musicManager } from '@/lib/feedback';
 import { Card } from '@/lib/types';
@@ -16,7 +17,7 @@ export function Game() {
   const { gameState, newGame } = useGame();
 
   // Splash screen state - starts false to avoid hydration mismatch
-  const [showSplash, setShowSplash] = useState(false);
+  const [splashStage, setSplashStage] = useState<'primary' | 'secondary' | null>(null);
   const [showVibeSplash, setShowVibeSplash] = useState(false);
   const [showVibeAfterSplash, setShowVibeAfterSplash] = useState(false);
   const [vibeSplashDuration, setVibeSplashDuration] = useState(4000);
@@ -28,7 +29,7 @@ export function Game() {
     setIsClient(true);
     const hasSeenSplash = sessionStorage.getItem('frosty-spider-splash-shown');
     if (!hasSeenSplash) {
-      setShowSplash(true);
+      setSplashStage('primary');
       setShowVibeAfterSplash(true);
       const hasSeenVibeSplash = sessionStorage.getItem('frosty-spider-vibe-splash-shown');
       setVibeSplashDuration(hasSeenVibeSplash ? 4000 : 7000);
@@ -52,25 +53,16 @@ export function Game() {
     if (gameState.settings.musicEnabled) {
       musicManager.setEnabled(true);
     }
-  }, [gameState.settings.musicEnabled]);
-
-  const handleSplashComplete = useCallback(() => {
     if (showVibeAfterSplash) {
-      setShowSplash(false);
       setShowVibeAfterSplash(false);
       setShowVibeSplash(true);
-      return;
     }
-
-    setShowSplash(false);
-    finalizeSplashSequence();
-  }, [finalizeSplashSequence, showVibeAfterSplash]);
+  }, [gameState.settings.musicEnabled, showVibeAfterSplash]);
 
   const handleVibeSplashComplete = useCallback(() => {
     setShowVibeSplash(false);
     sessionStorage.setItem('frosty-spider-vibe-splash-shown', 'true');
-    finalizeSplashSequence();
-  }, [finalizeSplashSequence]);
+  }, []);
 
   // Handle music toggle from settings
   useEffect(() => {
@@ -128,7 +120,7 @@ export function Game() {
     setShowVibeAfterSplash(true);
     const hasSeenVibeSplash = sessionStorage.getItem('frosty-spider-vibe-splash-shown');
     setVibeSplashDuration(hasSeenVibeSplash ? 4000 : 7000);
-    setShowSplash(true);
+    setSplashStage('primary');
   }, []);
 
   const handleShowVibeSplash = useCallback(() => {
