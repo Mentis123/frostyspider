@@ -6,7 +6,7 @@ import { ControlBar } from './ControlBar';
 import { SettingsModal } from './SettingsModal';
 import { WinModal } from './WinModal';
 import { SplashScreen } from './SplashScreen';
-import { SecondarySplashScreen } from './SecondarySplashScreen';
+import { VibeSplashScreen } from './VibeSplashScreen';
 import { StackCompleteAnimation } from './StackCompleteAnimation';
 import { useGame } from '@/contexts/GameContext';
 import { gameFeedback, initAudio, musicManager } from '@/lib/feedback';
@@ -16,7 +16,9 @@ export function Game() {
   const { gameState, newGame } = useGame();
 
   // Splash screen state - starts false to avoid hydration mismatch
-  const [splashStage, setSplashStage] = useState<'primary' | 'secondary' | null>(null);
+  const [showSplash, setShowSplash] = useState(false);
+  const [showVibeSplash, setShowVibeSplash] = useState(false);
+  const [showVibeAfterSplash, setShowVibeAfterSplash] = useState(false);
   const [isClient, setIsClient] = useState(false);
 
   // Check sessionStorage on client mount
@@ -24,19 +26,15 @@ export function Game() {
     setIsClient(true);
     const hasSeenSplash = sessionStorage.getItem('frosty-spider-splash-shown');
     if (!hasSeenSplash) {
-      setSplashStage('primary');
+      setShowSplash(true);
+      setShowVibeAfterSplash(true);
     } else {
       // If splash already shown, init audio immediately
       initAudio();
     }
   }, []);
 
-  const handlePrimarySplashComplete = useCallback(() => {
-    setSplashStage('secondary');
-  }, []);
-
-  const handleSecondarySplashComplete = useCallback(() => {
-    setSplashStage(null);
+  const finalizeSplashSequence = useCallback(() => {
     sessionStorage.setItem('frosty-spider-splash-shown', 'true');
     // Initialize audio after splash (user interaction helps unlock audio)
     initAudio();
@@ -45,6 +43,23 @@ export function Game() {
       musicManager.setEnabled(true);
     }
   }, [gameState.settings.musicEnabled]);
+
+  const handleSplashComplete = useCallback(() => {
+    if (showVibeAfterSplash) {
+      setShowSplash(false);
+      setShowVibeAfterSplash(false);
+      setShowVibeSplash(true);
+      return;
+    }
+
+    setShowSplash(false);
+    finalizeSplashSequence();
+  }, [finalizeSplashSequence, showVibeAfterSplash]);
+
+  const handleVibeSplashComplete = useCallback(() => {
+    setShowVibeSplash(false);
+    finalizeSplashSequence();
+  }, [finalizeSplashSequence]);
 
   // Handle music toggle from settings
   useEffect(() => {
@@ -99,7 +114,12 @@ export function Game() {
   };
 
   const handleShowSplash = useCallback(() => {
-    setSplashStage('primary');
+    setShowVibeAfterSplash(true);
+    setShowSplash(true);
+  }, []);
+
+  const handleShowVibeSplash = useCallback(() => {
+    setShowVibeSplash(true);
   }, []);
 
   const confirmNewGame = () => {
@@ -116,6 +136,9 @@ export function Game() {
       {splashStage === 'secondary' && (
         <SecondarySplashScreen onComplete={handleSecondarySplashComplete} duration={3000} />
       )}
+      {showVibeSplash && (
+        <VibeSplashScreen onComplete={handleVibeSplashComplete} duration={3000} />
+      )}
 
       {/* Game area - maximized */}
       <main className="flex-1 overflow-hidden">
@@ -129,7 +152,12 @@ export function Game() {
       />
 
       {/* Modals */}
-      <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} onShowSplash={handleShowSplash} />
+      <SettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        onShowSplash={handleShowSplash}
+        onShowVibeSplash={handleShowVibeSplash}
+      />
       <WinModal isOpen={showWin} onClose={() => setShowWin(false)} />
 
       {/* Stack completion animation */}

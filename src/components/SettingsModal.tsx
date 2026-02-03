@@ -8,6 +8,7 @@ interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onShowSplash: () => void;
+  onShowVibeSplash: () => void;
 }
 
 // Detect iOS (Safari, Chrome, Firefox on iOS all use WebKit)
@@ -17,7 +18,7 @@ function isIOS(): boolean {
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 }
 
-export function SettingsModal({ isOpen, onClose, onShowSplash }: SettingsModalProps) {
+export function SettingsModal({ isOpen, onClose, onShowSplash, onShowVibeSplash }: SettingsModalProps) {
   const { gameState, updateSettings, newGame } = useGame();
   const { settings } = gameState;
   const onIOS = useMemo(() => isIOS(), []);
@@ -36,6 +37,11 @@ export function SettingsModal({ isOpen, onClose, onShowSplash }: SettingsModalPr
   const handleShowSplash = () => {
     onClose();
     onShowSplash();
+  };
+
+  const handleShowVibeSplash = () => {
+    onClose();
+    onShowVibeSplash();
   };
 
   return (
@@ -133,6 +139,12 @@ export function SettingsModal({ isOpen, onClose, onShowSplash }: SettingsModalPr
             className="w-full py-2 px-4 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg transition-colors text-sm"
           >
             Splash Screen
+          </button>
+          <button
+            onClick={handleShowVibeSplash}
+            className="w-full py-2 px-4 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg transition-colors text-sm"
+          >
+            Vibe Academy Message
           </button>
         </div>
 
