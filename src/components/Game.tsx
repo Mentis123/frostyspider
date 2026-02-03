@@ -6,6 +6,7 @@ import { ControlBar } from './ControlBar';
 import { SettingsModal } from './SettingsModal';
 import { WinModal } from './WinModal';
 import { SplashScreen } from './SplashScreen';
+import { SecondarySplashScreen } from './SecondarySplashScreen';
 import { StackCompleteAnimation } from './StackCompleteAnimation';
 import { useGame } from '@/contexts/GameContext';
 import { gameFeedback, initAudio, musicManager } from '@/lib/feedback';
@@ -15,7 +16,7 @@ export function Game() {
   const { gameState, newGame } = useGame();
 
   // Splash screen state - starts false to avoid hydration mismatch
-  const [showSplash, setShowSplash] = useState(false);
+  const [splashStage, setSplashStage] = useState<'primary' | 'secondary' | null>(null);
   const [isClient, setIsClient] = useState(false);
 
   // Check sessionStorage on client mount
@@ -23,15 +24,19 @@ export function Game() {
     setIsClient(true);
     const hasSeenSplash = sessionStorage.getItem('frosty-spider-splash-shown');
     if (!hasSeenSplash) {
-      setShowSplash(true);
+      setSplashStage('primary');
     } else {
       // If splash already shown, init audio immediately
       initAudio();
     }
   }, []);
 
-  const handleSplashComplete = useCallback(() => {
-    setShowSplash(false);
+  const handlePrimarySplashComplete = useCallback(() => {
+    setSplashStage('secondary');
+  }, []);
+
+  const handleSecondarySplashComplete = useCallback(() => {
+    setSplashStage(null);
     sessionStorage.setItem('frosty-spider-splash-shown', 'true');
     // Initialize audio after splash (user interaction helps unlock audio)
     initAudio();
@@ -43,10 +48,10 @@ export function Game() {
 
   // Handle music toggle from settings
   useEffect(() => {
-    if (isClient && !showSplash) {
+    if (isClient && splashStage === null) {
       musicManager.setEnabled(gameState.settings.musicEnabled);
     }
-  }, [gameState.settings.musicEnabled, isClient, showSplash]);
+  }, [gameState.settings.musicEnabled, isClient, splashStage]);
 
   const [showSettings, setShowSettings] = useState(false);
   const [showWin, setShowWin] = useState(false);
@@ -94,7 +99,7 @@ export function Game() {
   };
 
   const handleShowSplash = useCallback(() => {
-    setShowSplash(true);
+    setSplashStage('primary');
   }, []);
 
   const confirmNewGame = () => {
@@ -105,8 +110,11 @@ export function Game() {
   return (
     <div className="flex flex-col h-[100dvh] bg-gray-900">
       {/* Splash screen - shows briefly on first load */}
-      {showSplash && (
-        <SplashScreen onComplete={handleSplashComplete} duration={2500} />
+      {splashStage === 'primary' && (
+        <SplashScreen onComplete={handlePrimarySplashComplete} duration={2500} />
+      )}
+      {splashStage === 'secondary' && (
+        <SecondarySplashScreen onComplete={handleSecondarySplashComplete} duration={3000} />
       )}
 
       {/* Game area - maximized */}
