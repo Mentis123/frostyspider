@@ -49,6 +49,23 @@ export function Game() {
     }
   }, [gameState.settings.musicEnabled]);
 
+  const handleSplashComplete = useCallback(() => {
+    if (showVibeAfterSplash) {
+      setShowSplash(false);
+      setShowVibeAfterSplash(false);
+      setShowVibeSplash(true);
+      return;
+    }
+
+    setShowSplash(false);
+    finalizeSplashSequence();
+  }, [finalizeSplashSequence, showVibeAfterSplash]);
+
+  const handleVibeSplashComplete = useCallback(() => {
+    setShowVibeSplash(false);
+    finalizeSplashSequence();
+  }, [finalizeSplashSequence]);
+
   // Handle music toggle from settings
   useEffect(() => {
     if (isClient && splashStage === null) {
@@ -106,6 +123,10 @@ export function Game() {
     setSplashStage('primary');
   }, []);
 
+  const handleShowVibeSplash = useCallback(() => {
+    setShowVibeSplash(true);
+  }, []);
+
   const confirmNewGame = () => {
     newGame();
     setShowNewGameConfirm(false);
@@ -136,7 +157,12 @@ export function Game() {
       />
 
       {/* Modals */}
-      <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} onShowSplash={handleShowSplash} />
+      <SettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        onShowSplash={handleShowSplash}
+        onShowVibeSplash={handleShowVibeSplash}
+      />
       <WinModal isOpen={showWin} onClose={() => setShowWin(false)} />
 
       {/* Stack completion animation */}
