@@ -6,7 +6,7 @@ import { ControlBar } from './ControlBar';
 import { SettingsModal } from './SettingsModal';
 import { WinModal } from './WinModal';
 import { SplashScreen } from './SplashScreen';
-import { VibeSplashScreen } from './VibeSplashScreen';
+import { SecondarySplashScreen } from './SecondarySplashScreen';
 import { StackCompleteAnimation } from './StackCompleteAnimation';
 import { useGame } from '@/contexts/GameContext';
 import { gameFeedback, initAudio, musicManager } from '@/lib/feedback';
@@ -16,25 +16,30 @@ export function Game() {
   const { gameState, newGame } = useGame();
 
   // Splash screen state - starts false to avoid hydration mismatch
-  const [showSplash, setShowSplash] = useState(false);
-  const [showVibeSplash, setShowVibeSplash] = useState(false);
-  const [showVibeAfterSplash, setShowVibeAfterSplash] = useState(false);
+  const [splashStage, setSplashStage] = useState<'primary' | 'secondary' | null>(null);
   const [isClient, setIsClient] = useState(false);
+  const [secondarySplashDuration, setSecondarySplashDuration] = useState(4000);
 
   // Check sessionStorage on client mount
   useEffect(() => {
     setIsClient(true);
     const hasSeenSplash = sessionStorage.getItem('frosty-spider-splash-shown');
     if (!hasSeenSplash) {
-      setShowSplash(true);
-      setShowVibeAfterSplash(true);
+      setSecondarySplashDuration(7000);
+      setSplashStage('primary');
     } else {
+      setSecondarySplashDuration(4000);
       // If splash already shown, init audio immediately
       initAudio();
     }
   }, []);
 
-  const finalizeSplashSequence = useCallback(() => {
+  const handlePrimarySplashComplete = useCallback(() => {
+    setSplashStage('secondary');
+  }, []);
+
+  const handleSecondarySplashComplete = useCallback(() => {
+    setSplashStage(null);
     sessionStorage.setItem('frosty-spider-splash-shown', 'true');
     // Initialize audio after splash (user interaction helps unlock audio)
     initAudio();
@@ -114,8 +119,8 @@ export function Game() {
   };
 
   const handleShowSplash = useCallback(() => {
-    setShowVibeAfterSplash(true);
-    setShowSplash(true);
+    setSecondarySplashDuration(4000);
+    setSplashStage('primary');
   }, []);
 
   const handleShowVibeSplash = useCallback(() => {
@@ -134,10 +139,10 @@ export function Game() {
         <SplashScreen onComplete={handlePrimarySplashComplete} duration={2500} />
       )}
       {splashStage === 'secondary' && (
-        <SecondarySplashScreen onComplete={handleSecondarySplashComplete} duration={3000} />
-      )}
-      {showVibeSplash && (
-        <VibeSplashScreen onComplete={handleVibeSplashComplete} duration={3000} />
+        <SecondarySplashScreen
+          onComplete={handleSecondarySplashComplete}
+          duration={secondarySplashDuration}
+        />
       )}
 
       {/* Game area - maximized */}
