@@ -18,8 +18,6 @@ export function Game() {
   // Splash screen state - starts false to avoid hydration mismatch
   const [splashStage, setSplashStage] = useState<'primary' | 'secondary' | null>(null);
   const [isClient, setIsClient] = useState(false);
-  const [secondarySplashDuration, setSecondarySplashDuration] = useState(4000);
-
   // Check sessionStorage on client mount
   useEffect(() => {
     setIsClient(true);
@@ -27,7 +25,6 @@ export function Game() {
     if (!hasSeenSplash) {
       setSplashStage('primary');
     } else {
-      setSecondarySplashDuration(4000);
       // If splash already shown, init audio immediately
       initAudio();
     }
@@ -113,12 +110,11 @@ export function Game() {
     <div className="flex flex-col h-[100dvh] bg-gray-900">
       {/* Splash screen - shows briefly on first load */}
       {splashStage === 'primary' && (
-        <SplashScreen onComplete={handlePrimarySplashComplete} duration={2500} />
+        <SplashScreen onComplete={handlePrimarySplashComplete} />
       )}
       {splashStage === 'secondary' && (
         <SecondarySplashScreen
           onComplete={handleSecondarySplashComplete}
-          duration={secondarySplashDuration}
         />
       )}
       {/* Game area - maximized */}

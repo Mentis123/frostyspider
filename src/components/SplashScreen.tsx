@@ -1,39 +1,20 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 interface SplashScreenProps {
   onComplete: () => void;
-  duration?: number; // Duration in ms before auto-dismiss
 }
 
 /**
- * Splash screen that shows briefly when the app loads
- * Displays the splash_screen.jpg with a fade-out animation
+ * Splash screen that shows when the app loads
+ * Displays the splash_screen.jpg - tap to dismiss
  */
-export function SplashScreen({ onComplete, duration = 2000 }: SplashScreenProps) {
+export function SplashScreen({ onComplete }: SplashScreenProps) {
   const [isVisible, setIsVisible] = useState(true);
   const [isFading, setIsFading] = useState(false);
 
-  useEffect(() => {
-    // Start fading after duration - 500ms (for fade animation)
-    const fadeTimer = setTimeout(() => {
-      setIsFading(true);
-    }, duration - 500);
-
-    // Complete after full duration
-    const completeTimer = setTimeout(() => {
-      setIsVisible(false);
-      onComplete();
-    }, duration);
-
-    return () => {
-      clearTimeout(fadeTimer);
-      clearTimeout(completeTimer);
-    };
-  }, [duration, onComplete]);
-
-  // Allow tap/click to dismiss early
+  // Tap/click to dismiss
   const handleDismiss = () => {
     setIsFading(true);
     setTimeout(() => {
