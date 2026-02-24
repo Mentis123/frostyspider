@@ -61,7 +61,7 @@ export function SecondarySplashScreen({
           A Birb Labs Artefact - Build Yours at the Vibe Academy
         </p>
         <a
-          href="https://atmanacademy.io/vibe"
+          href="https://atmanacademy.io/academy"
           target="_blank"
           rel="noreferrer"
           onClick={(event) => event.stopPropagation()}

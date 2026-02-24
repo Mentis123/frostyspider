@@ -8,7 +8,6 @@ import { WinModal } from './WinModal';
 import { SplashScreen } from './SplashScreen';
 import { SecondarySplashScreen } from './SecondarySplashScreen';
 import { StackCompleteAnimation } from './StackCompleteAnimation';
-import { VibeSplashScreen } from './VibeSplashScreen';
 import { useGame } from '@/contexts/GameContext';
 import { gameFeedback, initAudio, musicManager } from '@/lib/feedback';
 import { Card } from '@/lib/types';
@@ -18,9 +17,6 @@ export function Game() {
 
   // Splash screen state - starts false to avoid hydration mismatch
   const [splashStage, setSplashStage] = useState<'primary' | 'secondary' | null>(null);
-  const [showVibeSplash, setShowVibeSplash] = useState(false);
-  const [showVibeAfterSplash, setShowVibeAfterSplash] = useState(false);
-  const [vibeSplashDuration, setVibeSplashDuration] = useState(4000);
   const [isClient, setIsClient] = useState(false);
   const [secondarySplashDuration, setSecondarySplashDuration] = useState(4000);
 
@@ -30,9 +26,6 @@ export function Game() {
     const hasSeenSplash = sessionStorage.getItem('frosty-spider-splash-shown');
     if (!hasSeenSplash) {
       setSplashStage('primary');
-      setShowVibeAfterSplash(true);
-      const hasSeenVibeSplash = sessionStorage.getItem('frosty-spider-vibe-splash-shown');
-      setVibeSplashDuration(hasSeenVibeSplash ? 4000 : 7000);
     } else {
       setSecondarySplashDuration(4000);
       // If splash already shown, init audio immediately
@@ -53,16 +46,7 @@ export function Game() {
     if (gameState.settings.musicEnabled) {
       musicManager.setEnabled(true);
     }
-    if (showVibeAfterSplash) {
-      setShowVibeAfterSplash(false);
-      setShowVibeSplash(true);
-    }
-  }, [gameState.settings.musicEnabled, showVibeAfterSplash]);
-
-  const handleVibeSplashComplete = useCallback(() => {
-    setShowVibeSplash(false);
-    sessionStorage.setItem('frosty-spider-vibe-splash-shown', 'true');
-  }, []);
+  }, [gameState.settings.musicEnabled]);
 
   // Handle music toggle from settings
   useEffect(() => {
@@ -117,15 +101,7 @@ export function Game() {
   };
 
   const handleShowSplash = useCallback(() => {
-    setShowVibeAfterSplash(true);
-    const hasSeenVibeSplash = sessionStorage.getItem('frosty-spider-vibe-splash-shown');
-    setVibeSplashDuration(hasSeenVibeSplash ? 4000 : 7000);
     setSplashStage('primary');
-  }, []);
-
-  const handleShowVibeSplash = useCallback(() => {
-    setVibeSplashDuration(4000);
-    setShowVibeSplash(true);
   }, []);
 
   const confirmNewGame = () => {
@@ -145,10 +121,6 @@ export function Game() {
           duration={secondarySplashDuration}
         />
       )}
-      {showVibeSplash && (
-        <VibeSplashScreen onComplete={handleVibeSplashComplete} duration={vibeSplashDuration} />
-      )}
-
       {/* Game area - maximized */}
       <main className="flex-1 overflow-hidden">
         <GameBoard />
@@ -165,7 +137,6 @@ export function Game() {
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
         onShowSplash={handleShowSplash}
-        onShowVibeSplash={handleShowVibeSplash}
       />
       <WinModal isOpen={showWin} onClose={() => setShowWin(false)} />
 
