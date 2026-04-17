@@ -20,7 +20,7 @@ export function VibeSplashScreen({ onComplete, duration = 3000 }: VibeSplashScre
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/95 text-center px-6">
       <div className="max-w-md space-y-3">
         <a
-          href="https://atmanacademy.io/vibe"
+          href="https://www.vibeacademy.com.au/"
           target="_blank"
           rel="noreferrer"
           className="text-2xl sm:text-3xl font-semibold text-white hover:text-blue-300 transition-colors leading-snug"

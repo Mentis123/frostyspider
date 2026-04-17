@@ -131,7 +131,7 @@ export function VibeAcademySplash({
 
         {/* CTA button - links to Vibe Academy */}
         <a
-          href="https://atmanacademy.io/academy"
+          href="https://www.vibeacademy.com.au/"
           target="_blank"
           rel="noreferrer"
           onClick={(event) => event.stopPropagation()}
