@@ -2,13 +2,13 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Frosty Spider Solitaire",
+  title: "Spider Mobile",
   description: "A mobile-friendly Spider Solitaire game with infinite undo",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Frosty Spider",
+    title: "Spider Mobile",
   },
 };
 

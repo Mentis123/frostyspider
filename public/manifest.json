@@ -1,6 +1,6 @@
 {
-  "name": "Frosty Spider Solitaire",
-  "short_name": "Frosty Spider",
+  "name": "Spider Mobile",
+  "short_name": "Spider Mobile",
   "description": "A mobile-friendly Spider Solitaire game with infinite undo",
   "start_url": "/",
   "display": "standalone",

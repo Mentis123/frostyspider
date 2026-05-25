@@ -8,7 +8,7 @@ interface SplashScreenProps {
 
 /**
  * Splash screen that shows when the app loads
- * Displays the splash_screen.jpg - tap to dismiss
+ * Displays the Spider Mobile title image - tap to dismiss
  */
 export function SplashScreen({ onComplete }: SplashScreenProps) {
   const [isVisible, setIsVisible] = useState(true);
@@ -37,8 +37,8 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
       onTouchEnd={handleDismiss}
     >
       <img
-        src="/splash_screen.jpg"
-        alt="Frosty Spider"
+        src="/splash_screen.png"
+        alt="Spider Mobile"
         className="max-w-full max-h-full object-contain"
         draggable={false}
       />
