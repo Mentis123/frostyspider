@@ -37,8 +37,8 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
       onTouchEnd={handleDismiss}
     >
       <img
-        src="/splash_screen.png"
-        alt="Spider Mobile"
+        src="/splash_screen.webp"
+        alt="Frosty Spider"
         className="max-w-full max-h-full object-contain"
         draggable={false}
       />
