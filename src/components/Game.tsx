@@ -147,7 +147,12 @@ export function Game() {
       {/* New game confirmation */}
       {showNewGameConfirm && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-xl w-full max-w-sm p-6 text-center">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Start new game?"
+            className="bg-gray-800 rounded-xl w-full max-w-sm p-6 text-center"
+          >
             <h3 className="text-xl font-bold text-white mb-4">Start New Game?</h3>
             <p className="text-gray-400 mb-6">
               Your current game progress will be lost.

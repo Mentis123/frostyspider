@@ -70,6 +70,7 @@ export function Card({
     // Face down card - Custom Frosty Spider card back!
     return (
       <div
+        aria-label="Face-down card"
         className="absolute rounded-lg border-2 border-blue-400 shadow-md select-none overflow-hidden"
         style={{
           width: cardWidth,
@@ -88,15 +89,19 @@ export function Card({
     );
   }
 
-  // Calculate responsive font sizes based on card width
+  // Calculate responsive font sizes based on card width,
+  // with floors so ranks stay legible at the smallest card sizes
   const headerHeight = cardWidth * 0.28;
-  const headerRankSize = cardWidth * 0.22;
-  const headerSuitSize = cardWidth * 0.18;
+  const headerRankSize = Math.max(13, cardWidth * 0.22);
+  const headerSuitSize = Math.max(11, cardWidth * 0.18);
   const centerRankSize = cardWidth * 0.7;
-  const bottomSuitSize = cardWidth * 0.25;
+  const bottomSuitSize = Math.max(12, cardWidth * 0.25);
 
   return (
     <div
+      role={onClick ? 'button' : undefined}
+      aria-label={`${card.rank} of ${card.suit}`}
+      aria-pressed={onClick ? isSelected : undefined}
       className={`
         absolute rounded-lg
         bg-white border-2
@@ -160,9 +165,11 @@ export function EmptySlot({
 }) {
   return (
     <div
+      role={onClick ? 'button' : undefined}
+      aria-label="Empty column"
       className={`
         rounded-lg
-        border-2 border-dashed border-gray-400
+        border-2 border-dashed border-gray-300
         bg-gray-800/30
         ${onClick ? 'cursor-pointer hover:bg-gray-700/30' : ''}
       `}
@@ -192,7 +199,13 @@ export function StockPile({
   const piles = Math.ceil(remainingDeals / 10);
 
   return (
-    <div className="relative" style={{ width: cardWidth, height: cardHeight }}>
+    <div
+      role="button"
+      aria-label={`Deal a new row (${remainingDeals} cards left)`}
+      aria-disabled={disabled}
+      className="relative"
+      style={{ width: cardWidth, height: cardHeight }}
+    >
       {piles > 0 ? (
         <>
           {/* Stack effect with custom card back */}
@@ -212,7 +225,7 @@ export function StockPile({
                 left: i * 1,
                 zIndex: 5 - i,
               }}
-              onClick={disabled ? undefined : onClick}
+              onClick={onClick}
             >
               <img
                 src="/card_back.jpg"
