@@ -7,6 +7,30 @@
 
 ---
 
+## Implementation Status (2026-06-11)
+
+The bulk of P0–P2 was implemented immediately after this evaluation landed:
+
+- **Done:** CI workflow; Vitest engine suite (25 tests — which caught and fixed a real
+  engine bug: `hasCompleteSequence` never validated the 13th card's suit, so K♠…2♠+A♥
+  counted as a completed spade run in multi-suit games); seeded shuffling; all §1
+  confirmed bugs; persistence guard + restore validation; lazy AudioContext/music
+  creation; drag threshold + `elementFromPoint` hit-testing + multi-touch cancel;
+  rAF-debounced ResizeObserver; memoized context value; stuck/blocked-deal toasts with
+  an `aria-live` region; ARIA labels, dialog semantics, Escape-to-close,
+  reduced-motion CSS, font floors, contrast fix; PWA icons (generated from a new
+  frosty-spider mark), WebP splash (2.7 MB → 308 KB), manifest/metadata rebrand to
+  Frosty Spider; dead code and boilerplate assets removed; README + CLAUDE.md rewritten.
+  Bonus fixes found during implementation: WinModal re-randomized its confetti and
+  re-computed the win time on every re-render (both now captured once on open).
+- **Deliberately not done** (see roadmap): splash-flow changes (auto-dismiss was
+  explicitly removed by Mentis in #35), `findBestMove` strategy changes (needs
+  playtesting), keyboard play, scoring/stats, daily deals, offline service worker,
+  audio internals dedupe, `home_sound.mp3` re-encode (no ffmpeg available),
+  GameBoard structural split, layoutCalculator legacy-path prune.
+
+---
+
 ## Executive Summary
 
 Frosty Spider is in genuinely good shape for a breakable toy: the game engine is pure and
