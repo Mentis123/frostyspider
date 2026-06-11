@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   GameState,
   GameSettings,
@@ -11,7 +11,8 @@ import {
   executeMove,
   dealFromStock,
   findBestMove,
-  cloneGameState,
+  getValidSequence,
+  canMoveToColumn,
 } from '@/lib/gameEngine';
 
 interface GameContextType {
@@ -61,9 +62,10 @@ function reducer(state: StateWithHistory, action: Action): StateWithHistory {
       );
       if (!newState) return state;
 
+      // Engine states are immutable, so past states can be stored by reference
       return {
         current: newState,
-        history: [...state.history, cloneGameState(state.current)],
+        history: [...state.history, state.current],
         future: [], // Clear redo stack on new move
       };
     }
@@ -74,7 +76,7 @@ function reducer(state: StateWithHistory, action: Action): StateWithHistory {
 
       return {
         current: newState,
-        history: [...state.history, cloneGameState(state.current)],
+        history: [...state.history, state.current],
         future: [],
       };
     }
@@ -86,7 +88,7 @@ function reducer(state: StateWithHistory, action: Action): StateWithHistory {
       return {
         current: previousState,
         history: state.history.slice(0, -1),
-        future: [cloneGameState(state.current), ...state.future],
+        future: [state.current, ...state.future],
       };
     }
 
@@ -96,7 +98,7 @@ function reducer(state: StateWithHistory, action: Action): StateWithHistory {
       const nextState = state.future[0];
       return {
         current: nextState,
-        history: [...state.history, cloneGameState(state.current)],
+        history: [...state.history, state.current],
         future: state.future.slice(1),
       };
     }
@@ -131,6 +133,31 @@ function reducer(state: StateWithHistory, action: Action): StateWithHistory {
 const STORAGE_KEY = 'frosty-spider-solitaire';
 const SETTINGS_KEY = 'frosty-spider-settings';
 
+// Structural check for game state restored from localStorage — older or
+// corrupted saves must fall back to a fresh game instead of crashing the board
+function isValidSavedState(value: unknown): value is Omit<GameState, 'settings'> {
+  if (!value || typeof value !== 'object') return false;
+  const state = value as Partial<GameState>;
+  const isCardArray = (cards: unknown): cards is unknown[] =>
+    Array.isArray(cards) &&
+    cards.every(card => {
+      const c = card as Partial<{ id: string; suit: string; rank: string; faceUp: boolean }>;
+      return !!c && typeof c.id === 'string' && typeof c.suit === 'string' &&
+        typeof c.rank === 'string' && typeof c.faceUp === 'boolean';
+    });
+
+  return (
+    Array.isArray(state.tableau) &&
+    state.tableau.length === 10 &&
+    state.tableau.every(isCardArray) &&
+    isCardArray(state.stock) &&
+    Array.isArray(state.completed) &&
+    state.completed.every(isCardArray) &&
+    typeof state.moves === 'number' &&
+    typeof state.isWon === 'boolean'
+  );
+}
+
 // Create a deterministic placeholder state for SSR (same on server and client)
 // This prevents hydration mismatch since actual game init happens in useEffect
 function createPlaceholderState(): GameState {
@@ -146,7 +173,6 @@ function createPlaceholderState(): GameState {
 }
 
 export function GameProvider({ children }: { children: React.ReactNode }) {
-  const [isClient, setIsClient] = React.useState(false);
   const [state, dispatch] = useReducer(reducer, null, () => {
     // Initialize with empty placeholder - same on server and client
     return {
@@ -156,9 +182,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     };
   });
 
+  // Persistence must not run until the saved game has been restored, otherwise
+  // the placeholder state would overwrite the save before the load dispatch lands
+  const hasLoadedRef = useRef(false);
+
   // Load saved game and settings on mount (client-only)
   useEffect(() => {
-    setIsClient(true);
     try {
       const savedSettings = localStorage.getItem(SETTINGS_KEY);
       const settings: GameSettings = savedSettings
@@ -166,8 +195,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         : DEFAULT_SETTINGS;
 
       const savedGame = localStorage.getItem(STORAGE_KEY);
-      if (savedGame) {
-        const parsed = JSON.parse(savedGame);
+      const parsed: unknown = savedGame ? JSON.parse(savedGame) : null;
+      if (parsed && isValidSavedState(parsed)) {
         // Restore saved game with settings
         dispatch({
           type: 'SET_STATE',
@@ -181,10 +210,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       // If parsing fails, start fresh
       dispatch({ type: 'NEW_GAME' });
     }
+    hasLoadedRef.current = true;
   }, []);
 
   // Save game state to localStorage
   useEffect(() => {
+    if (!hasLoadedRef.current) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state.current));
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(state.current.settings));
@@ -195,10 +226,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   const moveCards = useCallback(
     (fromCol: number, cardIndex: number, toCol: number): boolean => {
-      const stateBefore = state.current;
+      if (fromCol === toCol) return false;
+      const sequence = getValidSequence(state.current.tableau[fromCol], cardIndex);
+      if (!sequence || !canMoveToColumn(sequence, state.current.tableau[toCol])) {
+        return false;
+      }
       dispatch({ type: 'MOVE', fromCol, cardIndex, toCol });
-      // Check if state actually changed (move was valid)
-      return true; // The reducer handles invalid moves by returning same state
+      return true;
     },
     [state.current]
   );
@@ -236,7 +270,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'UPDATE_SETTINGS', settings });
   }, []);
 
-  const value: GameContextType = {
+  const value: GameContextType = useMemo(() => ({
     gameState: state.current,
     canUndo: state.history.length > 0,
     canRedo: state.future.length > 0,
@@ -247,7 +281,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     redo,
     newGame,
     updateSettings,
-  };
+  }), [state.current, state.history.length, state.future.length, moveCards, autoMove, deal, undo, redo, newGame, updateSettings]);
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
 }

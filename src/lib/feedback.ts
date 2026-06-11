@@ -6,7 +6,7 @@
 type HapticPattern = 'light' | 'medium' | 'heavy' | 'success' | 'error';
 
 // Debug flag - set to true to see audio logs in console
-const AUDIO_DEBUG = true;
+const AUDIO_DEBUG = process.env.NODE_ENV !== 'production';
 
 function audioLog(...args: unknown[]): void {
   if (AUDIO_DEBUG) {
@@ -39,10 +39,9 @@ class AudioManager {
   private successAudio: HTMLAudioElement | null = null;
 
   private constructor() {
-    if (typeof window !== 'undefined') {
-      this.setupAudioContext();
-      this.createAudioElements();
-    }
+    // Audio resources are created lazily in init() so the AudioContext is not
+    // created at module import time (pre-gesture contexts start suspended on
+    // iOS/Chrome and trigger console warnings)
   }
 
   public static getInstance(): AudioManager {
@@ -175,8 +174,12 @@ class AudioManager {
   // Initialize - call on first user interaction
   public init(): void {
     if (this.isInitialized) return;
+    if (typeof window === 'undefined') return;
 
     audioLog('Initializing audio system, iOS:', isIOS());
+
+    this.setupAudioContext();
+    this.createAudioElements();
 
     // Set up unlock handlers that persist
     const unlockHandler = () => {
@@ -391,9 +394,8 @@ class MusicManager {
   private readonly MUSIC_VOLUME = 0.2;
 
   private constructor() {
-    if (typeof window !== 'undefined') {
-      this.createMusicElement();
-    }
+    // Music element is created lazily in init() so the track does not start
+    // downloading at module import time, ahead of the splash screen
   }
 
   public static getInstance(): MusicManager {
@@ -419,6 +421,9 @@ class MusicManager {
 
   public init(): void {
     if (this.isInitialized) return;
+    if (typeof window === 'undefined') return;
+
+    this.createMusicElement();
 
     // Set up unlock handlers for iOS
     const unlockHandler = () => {
@@ -514,7 +519,7 @@ export interface FeedbackOptions {
 }
 
 export function gameFeedback(
-  action: 'move' | 'select' | 'deal' | 'invalid' | 'complete' | 'win' | 'undo' | 'flip',
+  action: 'move' | 'select' | 'deal' | 'invalid' | 'complete' | 'win' | 'undo' | 'redo' | 'flip',
   options: FeedbackOptions
 ): void {
   const { soundEnabled, hapticEnabled } = options;
@@ -545,6 +550,7 @@ export function gameFeedback(
       if (soundEnabled) audioManager.playWin();
       break;
     case 'undo':
+    case 'redo':
     case 'flip':
       if (hapticEnabled) triggerHaptic('light');
       if (soundEnabled) audioManager.playClick();

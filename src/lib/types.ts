@@ -30,20 +30,6 @@ export interface GameSettings {
   showTimer: boolean;
 }
 
-export interface Move {
-  type: 'move' | 'deal' | 'complete';
-  from?: { column: number; cardIndex: number };
-  to?: { column: number };
-  cards?: Card[];
-  flippedCard?: { column: number; cardIndex: number };
-  completedColumn?: number;
-}
-
-export interface HistoryEntry {
-  state: GameState;
-  move: Move;
-}
-
 // Rank values for comparison
 export const RANK_VALUES: Record<Rank, number> = {
   'A': 1,

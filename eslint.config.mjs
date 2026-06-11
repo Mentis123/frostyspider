@@ -5,6 +5,16 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  {
+    rules: {
+      // React Compiler heuristics shipped with eslint-config-next 16. The
+      // patterns they flag here (splash-stage init from sessionStorage, win
+      // modal trigger, toast auto-show) are deliberate; keep them visible as
+      // warnings without blocking CI.
+      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/preserve-manual-memoization": "warn",
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
