@@ -39,6 +39,21 @@ html, body {
   }
 }
 
+/* Respect the OS reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .animate-confetti,
+  .animate-snowfall,
+  .animate-sparkle,
+  .animate-bounce-in,
+  .animate-pulse {
+    animation: none !important;
+  }
+
+  * {
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* Confetti animation */
 @keyframes confetti-fall {
   0% {

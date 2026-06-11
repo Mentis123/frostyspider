@@ -29,7 +29,7 @@ export function ControlBar({ onSettingsClick, onNewGameClick }: ControlBarProps)
   // Redo with feedback
   const handleRedo = useCallback(() => {
     redo();
-    gameFeedback('undo', feedbackOptions);
+    gameFeedback('redo', feedbackOptions);
   }, [redo, feedbackOptions]);
 
   // Update timer
@@ -69,14 +69,15 @@ export function ControlBar({ onSettingsClick, onNewGameClick }: ControlBarProps)
 
         {/* Control buttons - compact */}
         <div className="flex items-center gap-0.5">
-          <CompactButton onClick={handleUndo} disabled={!canUndo} icon="undo" />
-          <CompactButton onClick={handleRedo} disabled={!canRedo} icon="redo" />
+          <CompactButton onClick={handleUndo} disabled={!canUndo} icon="undo" label="Undo" />
+          <CompactButton onClick={handleRedo} disabled={!canRedo} icon="redo" label="Redo" />
           <CompactButton
             onClick={() => {
               gameFeedback('select', feedbackOptions);
               onNewGameClick();
             }}
             icon="new"
+            label="New game"
           />
           <CompactButton
             onClick={() => {
@@ -84,6 +85,7 @@ export function ControlBar({ onSettingsClick, onNewGameClick }: ControlBarProps)
               onSettingsClick();
             }}
             icon="settings"
+            label="Settings"
           />
         </div>
       </div>
@@ -95,10 +97,12 @@ function CompactButton({
   onClick,
   disabled,
   icon,
+  label,
 }: {
   onClick: () => void;
   disabled?: boolean;
   icon: 'undo' | 'redo' | 'new' | 'settings';
+  label: string;
 }) {
   const icons = {
     undo: (
@@ -128,6 +132,8 @@ function CompactButton({
     <button
       onClick={onClick}
       disabled={disabled}
+      aria-label={label}
+      title={label}
       className={`
         flex items-center justify-center
         w-10 h-10 rounded-lg

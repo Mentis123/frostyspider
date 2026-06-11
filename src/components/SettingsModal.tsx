@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import { GameSettings } from '@/lib/types';
 
@@ -22,6 +22,16 @@ export function SettingsModal({ isOpen, onClose, onShowSplash }: SettingsModalPr
   const { settings } = gameState;
   const onIOS = useMemo(() => isIOS(), []);
 
+  // Close on Escape
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleSuitCountChange = (suitCount: 1 | 2 | 4) => {
@@ -40,12 +50,18 @@ export function SettingsModal({ isOpen, onClose, onShowSplash }: SettingsModalPr
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-2 sm:p-4">
-      <div className="settings-modal bg-gray-800 rounded-xl w-full max-w-sm shadow-2xl flex flex-col max-h-[95vh]">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Settings"
+        className="settings-modal bg-gray-800 rounded-xl w-full max-w-sm shadow-2xl flex flex-col max-h-[95vh]"
+      >
         {/* Header */}
         <div className="settings-header flex justify-between items-center p-3 sm:p-4 border-b border-gray-700 shrink-0">
           <h2 className="text-lg sm:text-xl font-bold text-white">Settings</h2>
           <button
             onClick={onClose}
+            aria-label="Close settings"
             className="text-gray-400 hover:text-white text-2xl leading-none"
           >
             ×
@@ -176,6 +192,9 @@ function ToggleOption({
         <span className="text-gray-300">{label}</span>
         <button
           onClick={onChange}
+          role="switch"
+          aria-checked={checked}
+          aria-label={label}
           className={`
             relative w-12 h-6 rounded-full transition-colors
             ${checked ? 'bg-blue-600' : 'bg-gray-600'}

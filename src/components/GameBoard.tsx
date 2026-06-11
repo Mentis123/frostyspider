@@ -3,7 +3,7 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Card, EmptySlot, StockPile, CompletedPile } from './Card';
 import { useGame } from '@/contexts/GameContext';
-import { getValidSequence, canMoveToColumn } from '@/lib/gameEngine';
+import { getValidSequence, canMoveToColumn, isGameStuck } from '@/lib/gameEngine';
 import { Card as CardType } from '@/lib/types';
 import { gameFeedback } from '@/lib/feedback';
 import {
@@ -14,25 +14,27 @@ import {
   isStackCompressed,
   calculateSegmentLayout,
   topOffsetToBottomOffset,
-  ColumnSegment,
-  SegmentLayout,
   LayoutResult,
   StackOffsets,
 } from '@/lib/layoutCalculator';
 import { CompressedRun } from './CompressedRun';
 
 // Hook to observe container dimensions using ResizeObserver
+// Updates are coalesced to one per frame to avoid re-layout storms while the
+// mobile address bar shows/hides or the device rotates
 function useContainerDimensions(containerRef: React.RefObject<HTMLDivElement | null>) {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
     if (!containerRef.current) return;
 
+    let rafId = 0;
     const observer = new ResizeObserver(entries => {
       const entry = entries[0];
       if (entry) {
         const { width, height } = entry.contentRect;
-        setDimensions({ width, height });
+        cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(() => setDimensions({ width, height }));
       }
     });
 
@@ -42,11 +44,18 @@ function useContainerDimensions(containerRef: React.RefObject<HTMLDivElement | n
     const rect = containerRef.current.getBoundingClientRect();
     setDimensions({ width: rect.width, height: rect.height });
 
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(rafId);
+    };
   }, []);
 
   return dimensions;
 }
+
+// Distance a pointer must travel before a press becomes a drag — below this it
+// stays a tap, so finger jitter doesn't trigger accidental micro-drags
+const DRAG_THRESHOLD_PX = 8;
 
 interface DragState {
   fromCol: number;
@@ -56,6 +65,7 @@ interface DragState {
   startY: number;
   currentX: number;
   currentY: number;
+  hasMoved: boolean;
 }
 
 interface Selection {
@@ -68,6 +78,14 @@ export function GameBoard() {
   const [selection, setSelection] = useState<Selection | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [expandedColumn, setExpandedColumn] = useState<number | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  // Auto-hide toast messages
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   // Refs for measurement and drop detection
   const boardRef = useRef<HTMLDivElement>(null);
@@ -108,9 +126,18 @@ export function GameBoard() {
     }
   }, [expandedColumn]);
 
-  // Calculate column positions for drop detection
-  // Finds the closest column to the drop point to avoid issues with overlapping detection zones
+  // Calculate column positions for drop detection.
+  // Prefer hit-testing the actual rendered element under the pointer (the drag
+  // overlay is pointer-events-none so it never blocks this), falling back to
+  // the closest-rect scan for drops landing in gaps between columns.
   const getColumnAtPosition = useCallback((x: number, y: number): number | null => {
+    const hitElement = document.elementFromPoint(x, y);
+    const columnElement = hitElement?.closest('[data-column]') as HTMLElement | null;
+    if (columnElement?.dataset.column !== undefined) {
+      const col = parseInt(columnElement.dataset.column, 10);
+      if (!Number.isNaN(col)) return col;
+    }
+
     let closestCol: number | null = null;
     let closestDistance = Infinity;
 
@@ -213,6 +240,7 @@ export function GameBoard() {
         startY: clientY,
         currentX: clientX,
         currentY: clientY,
+        hasMoved: false,
       });
       setSelection(null);
     },
@@ -220,22 +248,29 @@ export function GameBoard() {
   );
 
   const handleDragMove = useCallback((clientX: number, clientY: number) => {
-    setDragState(prev =>
-      prev ? { ...prev, currentX: clientX, currentY: clientY } : null
-    );
+    setDragState(prev => {
+      if (!prev) return null;
+      const hasMoved =
+        prev.hasMoved ||
+        Math.hypot(clientX - prev.startX, clientY - prev.startY) > DRAG_THRESHOLD_PX;
+      return { ...prev, currentX: clientX, currentY: clientY, hasMoved };
+    });
   }, []);
 
   const handleDragEnd = useCallback(() => {
     if (!dragState) return;
 
-    const targetCol = getColumnAtPosition(dragState.currentX, dragState.currentY);
-    if (targetCol !== null && targetCol !== dragState.fromCol) {
-      const canMove = canMoveToColumn(dragState.cards, gameState.tableau[targetCol]);
-      if (canMove) {
-        moveCards(dragState.fromCol, dragState.cardIndex, targetCol);
-        gameFeedback('move', feedbackOptions);
-      } else {
-        gameFeedback('invalid', feedbackOptions);
+    // Below the threshold this was a tap — let the click handler do selection
+    if (dragState.hasMoved) {
+      const targetCol = getColumnAtPosition(dragState.currentX, dragState.currentY);
+      if (targetCol !== null && targetCol !== dragState.fromCol) {
+        const canMove = canMoveToColumn(dragState.cards, gameState.tableau[targetCol]);
+        if (canMove) {
+          moveCards(dragState.fromCol, dragState.cardIndex, targetCol);
+          gameFeedback('move', feedbackOptions);
+        } else {
+          gameFeedback('invalid', feedbackOptions);
+        }
       }
     }
 
@@ -274,7 +309,11 @@ export function GameBoard() {
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (e.touches.length !== 1) return;
+      // A second finger mid-drag cancels the drag instead of leaving it stale
+      if (e.touches.length !== 1) {
+        setDragState(null);
+        return;
+      }
       const touch = e.touches[0];
       handleDragMove(touch.clientX, touch.clientY);
     };
@@ -283,16 +322,22 @@ export function GameBoard() {
       handleDragEnd();
     };
 
+    const handleTouchCancel = () => {
+      setDragState(null);
+    };
+
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
     window.addEventListener('touchmove', handleTouchMove, { passive: false });
     window.addEventListener('touchend', handleTouchEnd);
+    window.addEventListener('touchcancel', handleTouchCancel);
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleTouchEnd);
+      window.removeEventListener('touchcancel', handleTouchCancel);
     };
   }, [dragState, handleDragMove, handleDragEnd]);
 
@@ -319,18 +364,33 @@ export function GameBoard() {
     if (canDealCards) {
       deal();
       gameFeedback('deal', feedbackOptions);
+    } else if (gameState.stock.length > 0) {
+      // Explain why the tap did nothing instead of silently refusing
+      gameFeedback('invalid', feedbackOptions);
+      setToast('Fill all empty columns before dealing');
     }
-  }, [canDealCards, deal, feedbackOptions]);
+  }, [canDealCards, deal, feedbackOptions, gameState.stock.length]);
+
+  // Tell the player when no moves remain instead of leaving them guessing
+  const isStuck = useMemo(
+    () => !gameState.isWon && gameState.moves > 0 && isGameStuck(gameState),
+    [gameState]
+  );
+  useEffect(() => {
+    if (isStuck) {
+      setToast('No moves left — undo or start a new game');
+    }
+  }, [isStuck]);
 
   // Get row index for a column
-  const getRowIndex = (colIndex: number): number => {
+  const getRowIndex = useCallback((colIndex: number): number => {
     for (let rowIdx = 0; rowIdx < rowConfig.length; rowIdx++) {
       if (rowConfig[rowIdx].includes(colIndex)) {
         return rowIdx;
       }
     }
     return 0;
-  };
+  }, [rowConfig]);
 
   // Calculate offsets and heights for each column using segment-based layout
   const columnLayouts = useMemo(() => {
@@ -376,7 +436,7 @@ export function GameBoard() {
         useSegmentRendering: !isExpanded && hasCompressibleRuns,
       };
     });
-  }, [gameState.tableau, rowHeights, cardHeight, expandedColumn, containerDimensions.height]);
+  }, [gameState.tableau, rowHeights, cardHeight, cardWidth, expandedColumn, containerDimensions.height, getRowIndex]);
 
   return (
     <div
@@ -419,7 +479,7 @@ export function GameBoard() {
               const column = gameState.tableau[colIndex];
               const columnLayout = columnLayouts[colIndex];
               const isDropTarget =
-                (dragState && dragState.fromCol !== colIndex) ||
+                (dragState && dragState.hasMoved && dragState.fromCol !== colIndex) ||
                 (selection && selection.column !== colIndex);
               const isValidTarget = isDropTarget && isValidDropTarget(colIndex);
               const isExpanded = expandedColumn === colIndex;
@@ -428,6 +488,7 @@ export function GameBoard() {
                 <div
                   key={colIndex}
                   ref={el => { columnRefs.current[colIndex] = el; }}
+                  data-column={colIndex}
                   className={`
                     relative flex-shrink-0 flex flex-col justify-end
                     ${isValidTarget ? 'bg-green-600/30 rounded-lg' : ''}
@@ -475,6 +536,7 @@ export function GameBoard() {
                           if (segment.type === 'run') {
                             // Check if any card in this run is being dragged
                             const isDragged = dragState &&
+                              dragState.hasMoved &&
                               dragState.fromCol === colIndex &&
                               dragState.cardIndex >= segment.startIndex &&
                               dragState.cardIndex <= segment.endIndex;
@@ -514,6 +576,7 @@ export function GameBoard() {
                           return segment.cards.map((card, cardInSegmentIndex) => {
                             const cardIndex = segment.startIndex + cardInSegmentIndex;
                             const isDragged = dragState &&
+                              dragState.hasMoved &&
                               dragState.fromCol === colIndex &&
                               cardIndex >= dragState.cardIndex;
                             const isSelected = selection &&
@@ -569,6 +632,7 @@ export function GameBoard() {
                         column.map((card, cardIndex) => {
                           const isDragged =
                             dragState &&
+                            dragState.hasMoved &&
                             dragState.fromCol === colIndex &&
                             cardIndex >= dragState.cardIndex;
 
@@ -627,8 +691,17 @@ export function GameBoard() {
         ))}
       </div>
 
+      {/* Toast / screen reader announcements */}
+      <div aria-live="polite" className="absolute bottom-2 left-0 right-0 flex justify-center pointer-events-none z-40">
+        {toast && (
+          <div className="bg-gray-900/90 text-gray-100 text-sm px-4 py-2 rounded-lg shadow-lg">
+            {toast}
+          </div>
+        )}
+      </div>
+
       {/* Dragging cards overlay */}
-      {dragState && (
+      {dragState && dragState.hasMoved && (
         <div
           className="fixed pointer-events-none z-50"
           style={{

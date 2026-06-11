@@ -32,28 +32,33 @@ All three link their Vibe Academy CTA to `https://www.vibeacademy.com.au/`. Neve
 
 ## What This Is
 
-Spider Solitaire implementation. Next.js 15 + React 19 + TypeScript + Tailwind. Haptic + audio feedback, animated stack completion, compressed-run view, settings modal, win modal.
+Spider Solitaire implementation. Next.js 16 + React 19 + TypeScript + Tailwind v4. Haptic + audio feedback, animated stack completion, compressed-run view, settings modal, win modal. Vitest covers the game engine; GitHub Actions CI runs typecheck/lint/test/build on every push and PR.
 
 ## Source Layout
 
 | File | Purpose |
 |------|---------|
 | `src/app/page.tsx` | Entry point — wraps `<Game>` in `<GameProvider>` |
-| `src/app/layout.tsx` | Root HTML shell |
+| `src/app/layout.tsx` | Root HTML shell + PWA metadata |
+| `src/lib/types.ts` | Card / game state / settings types |
+| `src/lib/gameEngine.ts` | Pure game logic — deals, moves, completion, win/stuck detection, seeded shuffles |
+| `src/lib/__tests__/gameEngine.test.ts` | Vitest suite for the engine (`npm test`) |
+| `src/lib/layoutCalculator.ts` | Card sizing, stack offsets, run-compression layout math |
+| `src/lib/feedback.ts` | Audio + haptic feedback helpers, background music |
 | `src/components/Game.tsx` | Top-level state orchestration — splash stages, modals, feedback |
 | `src/components/GameBoard.tsx` | Card grid rendering + drag/drop |
-| `src/components/Card.tsx` | Single card rendering |
+| `src/components/Card.tsx` | Single card rendering (+ EmptySlot, StockPile, CompletedPile) |
 | `src/components/ControlBar.tsx` | Bottom action bar |
 | `src/components/SplashScreen.tsx` | Primary image splash (tap-to-dismiss, session-gated) |
 | `src/components/SecondarySplashScreen.tsx` | **Active** Vibe Academy attribution splash — used by `Game.tsx` |
-| `src/components/VibeSplashScreen.tsx` | Alternate Vibe splash variant (not wired up — kept as reference) |
 | `VIBE_ACADEMY_SPLASH_TEMPLATE.tsx` | Repo-root reusable template other projects can copy |
 | `src/components/SettingsModal.tsx` | Settings |
 | `src/components/WinModal.tsx` | Victory screen |
 | `src/components/StackCompleteAnimation.tsx` | Run-completion flourish |
 | `src/components/CompressedRun.tsx` | Compact completed run display |
-| `src/contexts/GameContext.tsx` | Shared game state |
-| `src/lib/feedback.ts` | Audio + haptic feedback helpers |
+| `src/components/FrostySpider.tsx` | SVG mascot — not rendered in the UI; source of the app icon design |
+| `src/contexts/GameContext.tsx` | Shared game state + undo/redo + persistence |
+| `scripts/generate-assets.mjs` | One-off generator for PWA icons + WebP splash (needs `npm i --no-save sharp`) |
 
 ## Splash Flow
 
@@ -69,12 +74,14 @@ State machine in `Game.tsx`: `splashStage: 'primary' | 'secondary' | null`. Sess
 
 Stable. Vibe Academy splash links migrated from retired `atmanacademy.io` to `https://www.vibeacademy.com.au/` on 2026-04-17.
 
+2026-06-11: full codebase evaluation (`CODEBASE_EVALUATION.md`) implemented in bulk — CI + engine tests added, suit-check engine bug fixed, drag threshold + hit-testing improved, accessibility pass, PWA icons generated, splash compressed to WebP, branding unified to "Frosty Spider", dead code removed (`VibeSplashScreen.tsx`, boilerplate SVGs, old splash images).
+
 ## Safe Change Zones
 
 **Safe to edit:**
 - Visual styling (Tailwind classes throughout components)
 - Audio files and feedback triggers (`src/lib/feedback.ts`)
-- Splash image at `public/splash_screen.jpg`
+- Splash image at `public/splash_screen.webp` (regenerate via `scripts/generate-assets.mjs`)
 - Card and board styling
 
 **Edit carefully:**

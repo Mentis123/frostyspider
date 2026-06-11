@@ -2,8 +2,6 @@ import {
   Card,
   GameState,
   GameSettings,
-  Move,
-  Rank,
   Suit,
   RANKS,
   SUITS,
@@ -44,21 +42,35 @@ export function createDeck(suitCount: 1 | 2 | 4): Card[] {
   return cards;
 }
 
+// Small seeded PRNG (mulberry32) — lets the same seed reproduce the same deal,
+// which makes deals testable and enables replay/daily-deal features
+export function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 // Fisher-Yates shuffle
-export function shuffleDeck(cards: Card[]): Card[] {
+export function shuffleDeck(cards: Card[], random: () => number = Math.random): Card[] {
   const shuffled = [...cards];
   for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(random() * (i + 1));
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
   return shuffled;
 }
 
-// Initialize a new game
-export function initializeGame(settings: GameSettings = DEFAULT_SETTINGS): GameState {
+// Initialize a new game (pass a seed for a reproducible deal)
+export function initializeGame(settings: GameSettings = DEFAULT_SETTINGS, seed?: number): GameState {
   cardIdCounter = 0; // Reset counter for new game
 
-  const deck = shuffleDeck(createDeck(settings.suitCount));
+  const random = seed === undefined ? Math.random : mulberry32(seed);
+  const deck = shuffleDeck(createDeck(settings.suitCount), random);
   const tableau: Card[][] = Array.from({ length: 10 }, () => []);
 
   // Deal 54 cards to tableau
@@ -148,12 +160,13 @@ export function hasCompleteSequence(column: Card[]): { start: number; cards: Car
     // Must be K to A
     if (sequence[0].rank !== 'K' || sequence[12].rank !== 'A') continue;
 
-    // Must be same suit and valid sequence
+    // Must be same suit (all 13 cards) and a valid descending sequence
     const suit = sequence[0].suit;
+    if (!sequence.every(card => card.suit === suit)) continue;
+
     let valid = true;
     for (let j = 0; j < 12; j++) {
-      if (sequence[j].suit !== suit ||
-          RANK_VALUES[sequence[j].rank] !== RANK_VALUES[sequence[j + 1].rank] + 1) {
+      if (RANK_VALUES[sequence[j].rank] !== RANK_VALUES[sequence[j + 1].rank] + 1) {
         valid = false;
         break;
       }

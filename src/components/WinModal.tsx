@@ -8,27 +8,60 @@ interface WinModalProps {
   onClose: () => void;
 }
 
+interface ConfettiPiece {
+  left: number;
+  delay: number;
+  duration: number;
+  color: string;
+  emoji: string;
+}
+
+const CONFETTI_COLORS = ['#ff0', '#f0f', '#0ff', '#f00', '#0f0', '#00f'];
+const CONFETTI_EMOJI = ['🕷️', '✨', '🎉', '⭐', '🏆'];
+
+function formatTime(startTime: number | null): string {
+  if (!startTime) return '0:00';
+  const seconds = Math.floor((Date.now() - startTime) / 1000);
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
 export function WinModal({ isOpen, onClose }: WinModalProps) {
   const { gameState, newGame } = useGame();
-  const [showConfetti, setShowConfetti] = useState(false);
+  // Confetti positions and the final time are captured once when the modal
+  // opens — randomizing in render would reshuffle them on every re-render
+  const [confetti, setConfetti] = useState<ConfettiPiece[]>([]);
+  const [finalTime, setFinalTime] = useState('0:00');
 
   useEffect(() => {
     if (isOpen) {
-      setShowConfetti(true);
-      const timer = setTimeout(() => setShowConfetti(false), 5000);
+      setFinalTime(formatTime(gameState.startTime));
+      setConfetti(
+        Array.from({ length: 50 }, () => ({
+          left: Math.random() * 100,
+          delay: Math.random() * 2,
+          duration: 2 + Math.random() * 2,
+          color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+          emoji: CONFETTI_EMOJI[Math.floor(Math.random() * CONFETTI_EMOJI.length)],
+        }))
+      );
+      const timer = setTimeout(() => setConfetti([]), 5000);
       return () => clearTimeout(timer);
     }
-  }, [isOpen]);
+  }, [isOpen, gameState.startTime]);
+
+  // Close on Escape
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
-
-  const formatTime = (startTime: number | null): string => {
-    if (!startTime) return '0:00';
-    const seconds = Math.floor((Date.now() - startTime) / 1000);
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
 
   const handleNewGame = () => {
     newGame();
@@ -38,35 +71,33 @@ export function WinModal({ isOpen, onClose }: WinModalProps) {
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-2 sm:p-4">
       {/* Confetti animation */}
-      {showConfetti && (
+      {confetti.length > 0 && (
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          {Array.from({ length: 50 }).map((_, i) => (
+          {confetti.map((piece, i) => (
             <div
               key={i}
               className="absolute animate-confetti"
               style={{
-                left: `${Math.random() * 100}%`,
+                left: `${piece.left}%`,
                 top: '-20px',
-                animationDelay: `${Math.random() * 2}s`,
-                animationDuration: `${2 + Math.random() * 2}s`,
+                animationDelay: `${piece.delay}s`,
+                animationDuration: `${piece.duration}s`,
               }}
             >
-              <span
-                className="text-2xl"
-                style={{
-                  color: ['#ff0', '#f0f', '#0ff', '#f00', '#0f0', '#00f'][
-                    Math.floor(Math.random() * 6)
-                  ],
-                }}
-              >
-                {['🕷️', '✨', '🎉', '⭐', '🏆'][Math.floor(Math.random() * 5)]}
+              <span className="text-2xl" style={{ color: piece.color }}>
+                {piece.emoji}
               </span>
             </div>
           ))}
         </div>
       )}
 
-      <div className="bg-gradient-to-b from-gray-800 to-gray-900 rounded-xl w-full max-w-sm shadow-2xl text-center overflow-hidden max-h-full overflow-y-auto">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="You win"
+        className="bg-gradient-to-b from-gray-800 to-gray-900 rounded-xl w-full max-w-sm shadow-2xl text-center overflow-hidden max-h-full overflow-y-auto"
+      >
         {/* Trophy banner */}
         <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 py-3 sm:py-6">
           <div className="text-4xl sm:text-6xl mb-1 sm:mb-2">🏆</div>
@@ -83,7 +114,7 @@ export function WinModal({ isOpen, onClose }: WinModalProps) {
             <div className="bg-gray-700/50 rounded-lg p-2 sm:p-3">
               <div className="text-gray-400 text-xs sm:text-sm">Time</div>
               <div className="text-lg sm:text-2xl font-bold text-white">
-                {formatTime(gameState.startTime)}
+                {finalTime}
               </div>
             </div>
             <div className="bg-gray-700/50 rounded-lg p-2 sm:p-3">
@@ -97,7 +128,7 @@ export function WinModal({ isOpen, onClose }: WinModalProps) {
           </div>
 
           <p className="text-gray-400 text-xs sm:text-sm">
-            Congratulations, Frosty! You've conquered the spider! 🕷️
+            Congratulations, Frosty! You&apos;ve conquered the spider! 🕷️
           </p>
         </div>
 
